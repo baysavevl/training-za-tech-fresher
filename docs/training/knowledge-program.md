@@ -4,6 +4,12 @@ Target: fresher Java backend, 10 sessions, mỗi session 90 phút.
 
 Product used throughout the program: Conversation Automation System.
 
+Local UI entry points:
+
+- `http://localhost:8080/`: landing page for choosing the demo or training route.
+- `http://localhost:8080/ui`: Automation console for workflow setup, mock chat, history, session, and execution trace.
+- `http://localhost:8080/training`: ZA Fresher Training portal with guideline mapping, concept explanations, project examples, exercises, and a 10-session roadmap.
+
 ## 1. Training Philosophy
 
 Vai trò mentor: lead software engineer hướng dẫn fresher đi từ code chạy được đến tư duy production.
@@ -54,7 +60,8 @@ Kiến thức cần cover:
 Project mapping:
 
 - REST controllers in `conversation-app`.
-- React dashboard in `frontend` calling the same REST contracts.
+- React Automation console in `frontend` calling the same REST contracts.
+- React Training portal in `frontend` mapping guideline topics to code touchpoints and exercises.
 - `docs/api/api-contract.md`.
 - `intent-contract/src/main/proto/intent_classifier.proto`.
 - `intent-service`: skeleton for internal classifier service.

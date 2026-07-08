@@ -6,13 +6,15 @@ Base URL:
 http://localhost:8080
 ```
 
-React UI:
+React UI routes:
 
 ```text
-http://localhost:8080/
+http://localhost:8080/          landing page
+http://localhost:8080/ui        project automation console
+http://localhost:8080/training  ZA Fresher Training portal
 ```
 
-The UI is a local client for the same REST APIs below. It does not introduce a separate backend contract.
+The Automation console is a local client for the same REST APIs below. The Training portal is a local study guide that maps PC/CS RPC/TE/OB topics to the runnable project, examples, exercises, and the 10-session roadmap. These UI routes do not introduce separate backend contracts.
 
 Response lỗi chung:
 

@@ -16,7 +16,7 @@ Flow chính:
 ## Cấu trúc repo
 
 - `conversation-app`: Spring Boot REST API, workflow engine, mock chat adapter, persistence, observability/debug API, static UI serving.
-- `frontend`: React/Vite dashboard for workflow setup, mock chat, history, session, and trace.
+- `frontend`: React/Vite UI gồm landing page, Automation console, và ZA Fresher Training portal.
 - `intent-contract`: protobuf/gRPC contract dùng cho phần học RPC.
 - `intent-service`: service skeleton cho phần học RPC/internal service boundary.
 - `docs/design`: kiến trúc, database, runtime flow.
@@ -60,6 +60,9 @@ mvn -pl conversation-app -am spring-boot:run
 Ứng dụng dùng H2 in-memory mặc định:
 
 - API base URL: `http://localhost:8080`
+- Landing page: `http://localhost:8080/`
+- Automation console: `http://localhost:8080/ui`
+- ZA Fresher Training portal: `http://localhost:8080/training`
 - H2 console: `http://localhost:8080/h2-console`
 - JDBC URL: `jdbc:h2:mem:conversation_automation`
 - Actuator metrics: `http://localhost:8080/actuator/metrics`
@@ -91,7 +94,13 @@ mvn -Pwith-frontend clean package
 $JAVA_HOME/bin/java -jar conversation-app/target/conversation-app-0.1.0-SNAPSHOT.jar
 ```
 
-Mở UI tại `http://localhost:8080/`. Maven profile `with-frontend` chạy `npm ci`, build React, rồi copy `frontend/dist` vào Spring Boot static resources trước khi đóng gói JAR.
+Mở UI tại:
+
+- `http://localhost:8080/`: landing page để chọn luồng demo.
+- `http://localhost:8080/ui`: Project Automation console để tạo workflow, gửi mock chat và xem debug trace.
+- `http://localhost:8080/training`: ZA Fresher Training portal với topic PC/CS RPC/TE/OB, lộ trình học, ví dụ và bài tập.
+
+Maven profile `with-frontend` chạy `npm ci`, build React, rồi copy `frontend/dist` vào Spring Boot static resources trước khi đóng gói JAR.
 
 Chạy riêng RPC intent service cho session CS RPC:
 

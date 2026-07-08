@@ -41,7 +41,11 @@ MockChatService
 WorkflowExecutionEngine ----> ActionAdapter ----> Mock external action
 ```
 
-React UI is packaged from `frontend` into Spring Boot static resources when building with `-Pwith-frontend`:
+React UI is packaged from `frontend` into Spring Boot static resources when building with `-Pwith-frontend`. It has three local entry points:
+
+- `/`: landing page for demo navigation.
+- `/ui`: Conversation Automation console for workflow setup, mock chat, history, session, and trace.
+- `/training`: ZA Fresher Training portal for PC/CS RPC/TE/OB learning tracks, examples, exercises, and roadmap.
 
 ```text
 frontend React/Vite source
@@ -67,7 +71,7 @@ single Spring Boot JAR serves UI + API
 - `mockchat`: demo channel implementation and main incoming message flow.
 - `persistence`: JDBC repositories with explicit SQL.
 - `domain`: immutable records and enums.
-- `frontend`: React operational console for local mentoring and demos.
+- `frontend`: React landing page, automation console, and training portal for local mentoring and demos.
 
 Rule for fresher: controller không chứa business logic, repository không quyết định workflow, engine không biết HTTP/database.
 
@@ -192,7 +196,8 @@ Implemented:
   - `status`
 - Persistent `execution_traces` table.
 - Debug APIs for history, session, and trace.
-- React dashboard for workflow setup, mock chat input, session, history, and trace.
+- React Automation console for workflow setup, mock chat input, session, history, and trace.
+- React Training portal for knowledge roadmap, guideline mapping, exercises, and capstone framing.
 - Spring Actuator metrics endpoint.
 
 Rule for fresher: log phải giúp trả lời “request nào, message nào, conversation nào, session nào, đang ở node nào, kết quả gì”.

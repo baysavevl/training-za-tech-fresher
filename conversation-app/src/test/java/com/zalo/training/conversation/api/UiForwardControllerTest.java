@@ -28,4 +28,11 @@ class UiForwardControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(forwardedUrl("/index.html"));
     }
+
+    @Test
+    void forwardsTrainingRoutesToReactIndex() throws Exception {
+        mockMvc.perform(get("/training/pc-concurrency"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("/index.html"));
+    }
 }
