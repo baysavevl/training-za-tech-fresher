@@ -14,20 +14,21 @@ import {
   Send,
   Workflow
 } from 'lucide-react'
+import { learningSessions, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
 
 const SAMPLE_WORKFLOW = {
   nodes: [
     { id: 'start', type: 'START', config: {} },
-    { id: 'ask', type: 'QUESTION', config: { message: 'Ban can ho tro gi?' } },
+    { id: 'ask', type: 'QUESTION', config: { message: 'How can I help you today?' } },
     { id: 'lookup', type: 'ACTION', config: { action: 'ORDER_LOOKUP' } },
-    { id: 'handoff', type: 'HANDOFF', config: { message: 'Minh se chuyen hoi thoai nay cho nhan vien ho tro.' } },
-    { id: 'end', type: 'END', config: { message: 'Da xu ly xong' } }
+    { id: 'handoff', type: 'HANDOFF', config: { message: 'I will route this conversation to a support specialist.' } },
+    { id: 'end', type: 'END', config: { message: 'The request has been handled.' } }
   ],
   edges: [
     { from: 'start', to: 'ask', matchType: 'ALWAYS', matchValue: '' },
-    { from: 'ask', to: 'lookup', matchType: 'KEYWORD', matchValue: 'don hang' },
-    { from: 'ask', to: 'handoff', matchType: 'KEYWORD', matchValue: 'nhan vien' },
+    { from: 'ask', to: 'lookup', matchType: 'KEYWORD', matchValue: 'order' },
+    { from: 'ask', to: 'handoff', matchType: 'KEYWORD', matchValue: 'agent' },
     { from: 'ask', to: 'end', matchType: 'FALLBACK', matchValue: '' },
     { from: 'lookup', to: 'end', matchType: 'ALWAYS', matchValue: '' }
   ]
@@ -40,62 +41,10 @@ const initialState = {
   userId: 'mock-user-001',
   messageId: 'msg-001',
   requestId: 'request-ui-001',
-  text: 'toi muon xem don hang A123',
+  text: 'please check order A123',
   conversationId: '',
   workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2)
 }
-
-const trainingTopics = [
-  {
-    id: 'pc',
-    label: 'PC 01',
-    title: 'Parallelism & Concurrency',
-    focus: 'Thread, thread pool, lock, atomicity, idempotency, race condition.',
-    concepts: ['Background thread', 'Blocking queue', 'Thread safety', 'Deadlock risk', 'CAS and atomic counter', 'Session update race'],
-    projectMap: ['ConversationLockManager', 'message_idempotency', 'conversation_sessions.version', 'ConversationLockManagerTest'],
-    exercise: 'Thiet ke optimistic locking cho session update bang WHERE id = ? AND version = ?.'
-  },
-  {
-    id: 'rpc',
-    label: 'CS RPC 01',
-    title: 'Client/Server & RPC',
-    focus: 'REST contract, RPC contract, stub/skeleton, serialization, service boundary.',
-    concepts: ['Client/server responsibility', 'REST resource API', 'RPC internal call', 'protobuf schema', 'Compatibility', 'Timeout and failure boundary'],
-    projectMap: ['AutomationController', 'MockChatController', 'intent_classifier.proto', 'IntentClassifierGrpcServiceTest'],
-    exercise: 'Mo rong proto response voi reason code ma khong pha backward compatibility.'
-  },
-  {
-    id: 'te',
-    label: 'TE 01',
-    title: 'Testing Engineering',
-    focus: 'Test level, design for testability, dependency inversion, regression safety.',
-    concepts: ['Unit test', 'Integration test', 'Smoke test', 'Regression test', 'Dependency injection', 'Pure domain logic'],
-    projectMap: ['WorkflowExecutionEngineTest', 'WorkflowValidatorTest', 'MockChatFlowTest', 'ContextSmokeTest'],
-    exercise: 'Them fallback branch moi va viet unit test truoc khi sua engine.'
-  },
-  {
-    id: 'ob',
-    label: 'OB 01',
-    title: 'Observability',
-    focus: 'Log, metrics, trace, correlation ID, debug API.',
-    concepts: ['Structured log', 'request_id', 'message_id', 'conversation_id', 'execution trace', 'Actuator metrics'],
-    projectMap: ['MockChatService log line', 'execution_traces', '/trace API', '/actuator/metrics'],
-    exercise: 'Them actionName vao trace detail va verify qua debug panel.'
-  }
-]
-
-const learningSessions = [
-  ['01', 'Product, client/server, REST contract', 'Doc API contract, tao customer/conversation/message bang test va UI.'],
-  ['02', 'Database design', 'Phan biet config table, runtime table, history table, trace table.'],
-  ['03', 'Workflow JSON and publish validation', 'Node, edge, fallback, action, version, publish boundary.'],
-  ['04', 'State machine execution engine', 'START -> QUESTION -> ACTION -> END va session current_node_id.'],
-  ['05', 'Mock Chat Adapter', 'ChannelAdapter tach channel payload khoi engine.'],
-  ['06', 'Idempotency', 'Replay duplicate message_id va giai thich response idempotent.'],
-  ['07', 'Concurrency', 'Race condition khi nhieu message update cung conversation session.'],
-  ['08', 'Reliability and action adapter', 'Retry/backoff/dead-letter la extension sau ACTION node.'],
-  ['09', 'Observability', 'Structured log, trace table, history/session/trace debug panel.'],
-  ['10', 'Testing and capstone', 'Build refund-support automation co test va review checklist.']
-]
 
 function App() {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -392,7 +341,7 @@ function LandingPage({ navigate }) {
           <Workflow size={24} aria-hidden="true" />
           <div>
             <h1>Conversation Automation</h1>
-            <p>ZA fresher training workspace</p>
+            <p>Backend fresher training workspace</p>
           </div>
         </div>
         <div className="nav-actions">
@@ -407,11 +356,11 @@ function LandingPage({ navigate }) {
 
       <section className="landing-hero">
         <div className="hero-copy">
-          <p className="eyebrow">Fresher backend mentoring project</p>
-          <h2>Train API, workflow, state, concurrency, and observability through one running product.</h2>
+          <p className="eyebrow">Java backend mentoring system</p>
+          <h2>Learn backend fundamentals through a runnable chat automation product.</h2>
           <p>
-            One workspace contains the runnable Conversation Automation project and the ZA Fresher
-            Training program built from PC, CS RPC, TE, and OB guidelines.
+            One source tree contains the Java API, React console, workflow engine, mock chat channel,
+            observability panels, and a structured ZA Fresher Training program.
           </p>
           <div className="hero-actions">
             <button type="button" className="primary" onClick={() => navigate('/ui')}>
@@ -427,11 +376,11 @@ function LandingPage({ navigate }) {
         <div className="flow-board" aria-label="Runtime flow">
           <FlowNode label="Mock Chat" detail="Incoming message" icon={<MessageSquare size={18} />} />
           <FlowConnector />
-          <FlowNode label="Workflow" detail="START to END graph" icon={<Workflow size={18} />} />
+          <FlowNode label="Automation" detail="Workflow graph" icon={<Workflow size={18} />} />
           <FlowConnector />
-          <FlowNode label="Session" detail="State machine update" icon={<Database size={18} />} />
+          <FlowNode label="Session" detail="State machine" icon={<Database size={18} />} />
           <FlowConnector />
-          <FlowNode label="Trace" detail="Debug every node" icon={<Bug size={18} />} />
+          <FlowNode label="Trace" detail="Debug signals" icon={<Bug size={18} />} />
         </div>
       </section>
 
@@ -496,28 +445,21 @@ function TrainingPortal({ navigate }) {
 
       <section className="training-hero">
         <p className="eyebrow">Lead engineer mentoring track</p>
-        <h2>Tu kien thuc nen den cach thiet ke, debug va review mot backend workflow system.</h2>
+        <h2>From foundation knowledge to designing, debugging, and reviewing a backend workflow system.</h2>
         <p>
-          Chuong trinh nay dung Conversation Automation System lam project trung tam. Moi topic
-          deu co concept, dien giai, vi du trong source code, bai tap va checkpoint review.
+          Every module connects a core backend concept to a concrete part of the Conversation
+          Automation project: definition, explanation, example, demo path, project hooks, and a visual chart.
         </p>
+        <div className="training-actions">
+          {trainingTopics.map(topic => (
+            <a href={`#${topic.id}`} key={topic.id}>{topic.label}</a>
+          ))}
+        </div>
       </section>
 
-      <section className="topic-grid" aria-label="Foundation topics">
+      <section className="topic-stack" aria-label="Foundation topics">
         {trainingTopics.map(topic => (
-          <article className="topic-card" key={topic.id} id={topic.id}>
-            <span className="topic-label">{topic.label}</span>
-            <h3>{topic.title}</h3>
-            <p>{topic.focus}</p>
-            <div className="topic-columns">
-              <TopicList title="Concepts" items={topic.concepts} />
-              <TopicList title="Project examples" items={topic.projectMap} />
-            </div>
-            <div className="exercise">
-              <strong>Exercise</strong>
-              <span>{topic.exercise}</span>
-            </div>
-          </article>
+          <TopicModule topic={topic} navigate={navigate} key={topic.id} />
         ))}
       </section>
 
@@ -527,54 +469,100 @@ function TrainingPortal({ navigate }) {
           <h3>Learning roadmap</h3>
         </div>
         <div className="session-list">
-          {learningSessions.map(([number, title, detail]) => (
-            <article className="session-item" key={number}>
-              <span>{number}</span>
+          {learningSessions.map(session => (
+            <article className="session-item" key={session.number}>
+              <span>{session.number}</span>
               <div>
-                <h4>{title}</h4>
-                <p>{detail}</p>
+                <h4>{session.title}</h4>
+                <p>{session.demo}</p>
               </div>
+              <small>{session.duration}</small>
             </article>
           ))}
         </div>
       </section>
 
       <section className="study-grid">
-        <article>
-          <h3>Mentor checklist</h3>
-          <ul>
-            <li>Bat dau bang product behavior va API contract.</li>
-            <li>Hoi state nam o dau, ai update, duplicate message ra sao.</li>
-            <li>Yeu cau test cho pure logic truoc khi dung framework.</li>
-            <li>Review log field theo request/message/conversation/session/node.</li>
-          </ul>
-        </article>
-        <article>
-          <h3>Fresher self-study</h3>
-          <ul>
-            <li>Doc controller DTO de hieu request/response contract.</li>
-            <li>Doc schema va ve lai relationship cua config/runtime/debug tables.</li>
-            <li>Chay unit test engine, sau do thay workflow JSON de quan sat fallback.</li>
-            <li>Replay duplicate message tren UI va kiem tra history khong tang.</li>
-          </ul>
-        </article>
-        <article>
-          <h3>Capstone</h3>
-          <ul>
-            <li>Build refund-support automation co QUESTION, CONDITION, ACTION, HANDOFF, END.</li>
-            <li>Them validation cho unreachable node hoac duplicate fallback.</li>
-            <li>Them it nhat mot unit test va mot integration test.</li>
-            <li>Trinh bay trace debug cua flow chinh va flow fallback.</li>
-          </ul>
-        </article>
+        {studyCards.map(card => (
+          <article key={card.title}>
+            <h3>{card.title}</h3>
+            <ul>
+              {card.items.map(item => <li key={item}>{item}</li>)}
+            </ul>
+          </article>
+        ))}
       </section>
     </main>
   )
 }
 
+function TopicModule({ topic, navigate }) {
+  return (
+    <article className="topic-module" id={topic.id}>
+      <header className="topic-header">
+        <span className="topic-label">{topic.label}</span>
+        <div>
+          <h3>{topic.title}</h3>
+          <p>{topic.summary}</p>
+        </div>
+      </header>
+
+      <div className="knowledge-grid">
+        <section className="knowledge-card definition">
+          <h4>Definition</h4>
+          <p>{topic.definition}</p>
+        </section>
+        <section className="knowledge-card">
+          <h4>Explanation</h4>
+          <p>{topic.explanation}</p>
+        </section>
+        <section className="knowledge-card example-card">
+          <h4>Example</h4>
+          <strong>{topic.example.title}</strong>
+          <ol>
+            {topic.example.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
+        </section>
+        <section className="knowledge-card demo-card">
+          <h4>Automation Chat Demo</h4>
+          <strong>{topic.demo.action}</strong>
+          <p>{topic.demo.text}</p>
+          <button type="button" onClick={() => navigate(topic.demo.consolePath)}>
+            <Play size={16} aria-hidden="true" /> Open linked demo
+          </button>
+        </section>
+      </div>
+
+      <div className="topic-lab">
+        <LearningChart chart={topic.chart} />
+        <TopicList title="Project hooks" items={topic.demo.projectHooks} />
+      </div>
+    </article>
+  )
+}
+
+function LearningChart({ chart }) {
+  return (
+    <section className="chart-card" aria-label={chart.title}>
+      <h4>{chart.title}</h4>
+      <div className="chart-flow">
+        {chart.nodes.map((node, index) => (
+          <React.Fragment key={node.label}>
+            <div className={`chart-node ${node.tone}`}>
+              <strong>{node.label}</strong>
+              <span>{node.detail}</span>
+            </div>
+            {index < chart.nodes.length - 1 ? <div className="chart-arrow" aria-hidden="true" /> : null}
+          </React.Fragment>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function TopicList({ title, items }) {
   return (
-    <div>
+    <div className="hook-list">
       <h4>{title}</h4>
       <ul>
         {items.map(item => <li key={item}>{item}</li>)}
