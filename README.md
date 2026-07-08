@@ -15,7 +15,8 @@ Flow chính:
 
 ## Cấu trúc repo
 
-- `conversation-app`: Spring Boot REST API, workflow engine, mock chat adapter, persistence, observability/debug API.
+- `conversation-app`: Spring Boot REST API, workflow engine, mock chat adapter, persistence, observability/debug API, static UI serving.
+- `frontend`: React/Vite dashboard for workflow setup, mock chat, history, session, and trace.
 - `intent-contract`: protobuf/gRPC contract dùng cho phần học RPC.
 - `intent-service`: service skeleton cho phần học RPC/internal service boundary.
 - `docs/design`: kiến trúc, database, runtime flow.
@@ -27,6 +28,7 @@ Flow chính:
 
 - JDK 21 trở lên.
 - Maven 3.9 trở lên.
+- Node.js/npm để build React UI.
 
 Máy hiện tại có thể cần set Java trước khi chạy Maven:
 
@@ -61,6 +63,35 @@ mvn -pl conversation-app -am spring-boot:run
 - H2 console: `http://localhost:8080/h2-console`
 - JDBC URL: `jdbc:h2:mem:conversation_automation`
 - Actuator metrics: `http://localhost:8080/actuator/metrics`
+
+## Chạy React UI khi phát triển
+
+Terminal 1:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 24)
+mvn -pl conversation-app -am spring-boot:run
+```
+
+Terminal 2:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Vite dev server chạy tại `http://localhost:5173` và proxy `/api`, `/actuator` về Spring Boot.
+
+## Build một artifact có cả FE + BE
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 24)
+mvn -Pwith-frontend clean package
+$JAVA_HOME/bin/java -jar conversation-app/target/conversation-app-0.1.0-SNAPSHOT.jar
+```
+
+Mở UI tại `http://localhost:8080/`. Maven profile `with-frontend` chạy `npm ci`, build React, rồi copy `frontend/dist` vào Spring Boot static resources trước khi đóng gói JAR.
 
 Chạy riêng RPC intent service cho session CS RPC:
 

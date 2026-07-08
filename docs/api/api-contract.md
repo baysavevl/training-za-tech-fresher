@@ -6,6 +6,14 @@ Base URL:
 http://localhost:8080
 ```
 
+React UI:
+
+```text
+http://localhost:8080/
+```
+
+The UI is a local client for the same REST APIs below. It does not introduce a separate backend contract.
+
 Response lỗi chung:
 
 ```json

@@ -54,6 +54,7 @@ Kiến thức cần cover:
 Project mapping:
 
 - REST controllers in `conversation-app`.
+- React dashboard in `frontend` calling the same REST contracts.
 - `docs/api/api-contract.md`.
 - `intent-contract/src/main/proto/intent_classifier.proto`.
 - `intent-service`: skeleton for internal classifier service.
@@ -117,6 +118,7 @@ Code touchpoints:
 
 - `ConversationController`
 - `MockChatController`
+- `frontend/src/main.jsx`
 - Request/response records in controllers.
 
 Exercise:
@@ -212,7 +214,7 @@ Outcome:
 - 15 phút: why adapter boundary exists.
 - 20 phút: inspect `ChannelAdapter` and `MockChatChannelAdapter`.
 - 30 phút: walk through `MockChatService.handleIncoming`.
-- 15 phút: run HTTP demo steps 1-5.
+- 15 phút: run React dashboard flow or HTTP demo steps 1-5.
 - 10 phút: recap.
 
 Code touchpoints:
@@ -314,7 +316,7 @@ Outcome:
 - 15 phút: observability concepts.
 - 20 phút: inspect structured log in `MockChatService`.
 - 20 phút: inspect `execution_traces`.
-- 20 phút: run debug APIs: history, session, trace.
+- 20 phút: run debug APIs and React dashboard panels: history, session, trace.
 - 15 phút: discuss metrics outline.
 
 Code touchpoints:

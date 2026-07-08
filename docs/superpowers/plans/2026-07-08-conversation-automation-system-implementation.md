@@ -18,6 +18,7 @@ Core product:
 - Per-conversation concurrency guard.
 - Action adapter with mock external actions.
 - Structured logs and debug APIs.
+- React/Vite dashboard served from the same Spring Boot artifact when built with `-Pwith-frontend`.
 - Database schema for config, runtime state, history, trace, and action execution.
 - Unit and integration tests.
 - README, design docs, API contract, demo script, and training program.
@@ -29,11 +30,12 @@ Optional/design-only extensions:
 - Session cleanup job.
 - Rate limiting.
 - Advanced workflow validation.
-- Web UI.
+- Additional Web UI views beyond the local dashboard.
 
 ## Implemented Modules
 
 - `conversation-app`: REST API, workflow engine, mock chat service, repositories, schema, tests.
+- `frontend`: React/Vite dashboard for workflow setup, mock chat, and debug trace.
 - `intent-contract`: protobuf/gRPC contract used for RPC training.
 - `intent-service`: Spring Boot skeleton for internal service training.
 
@@ -52,6 +54,7 @@ Optional/design-only extensions:
 - [x] Add mock action adapter and action execution storage.
 - [x] Add execution trace storage and debug APIs.
 - [x] Add structured log fields on main flow.
+- [x] Add React dashboard and Maven `with-frontend` packaging profile.
 - [x] Add unit tests for engine, validator, idempotency, and concurrency.
 - [x] Add integration tests for REST and mock chat flow.
 - [x] Add JavaDoc to main sample classes.
@@ -72,6 +75,13 @@ Focused workflow verification:
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 24)
 mvn -pl conversation-app -am -Dtest=WorkflowValidatorTest,WorkflowExecutionEngineTest,MockChatFlowTest,ConversationLockManagerTest test
+```
+
+Single artifact verification:
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 24)
+mvn -Pwith-frontend clean package
 ```
 
 ## Finalization

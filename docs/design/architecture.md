@@ -41,6 +41,23 @@ MockChatService
 WorkflowExecutionEngine ----> ActionAdapter ----> Mock external action
 ```
 
+React UI is packaged from `frontend` into Spring Boot static resources when building with `-Pwith-frontend`:
+
+```text
+frontend React/Vite source
+    |
+    | npm ci && npm run build
+    v
+frontend/dist
+    |
+    | Maven copy-resources
+    v
+conversation-app/target/classes/static
+    |
+    v
+single Spring Boot JAR serves UI + API
+```
+
 ## 3. Module Boundaries
 
 - `api`: REST controllers and response/request DTOs.
@@ -50,6 +67,7 @@ WorkflowExecutionEngine ----> ActionAdapter ----> Mock external action
 - `mockchat`: demo channel implementation and main incoming message flow.
 - `persistence`: JDBC repositories with explicit SQL.
 - `domain`: immutable records and enums.
+- `frontend`: React operational console for local mentoring and demos.
 
 Rule for fresher: controller không chứa business logic, repository không quyết định workflow, engine không biết HTTP/database.
 
@@ -174,6 +192,7 @@ Implemented:
   - `status`
 - Persistent `execution_traces` table.
 - Debug APIs for history, session, and trace.
+- React dashboard for workflow setup, mock chat input, session, history, and trace.
 - Spring Actuator metrics endpoint.
 
 Rule for fresher: log phải giúp trả lời “request nào, message nào, conversation nào, session nào, đang ở node nào, kết quả gì”.

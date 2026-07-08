@@ -16,6 +16,7 @@ The training material is based on four FT BE guideline groups:
 Implemented local backend:
 
 - Spring Boot Java application.
+- React/Vite local dashboard packaged into Spring Boot for one-source deployment.
 - Mock Chat API to simulate user messages and automated responses.
 - Automation APIs to create/update/enable/disable automations.
 - Workflow draft and publish APIs.
@@ -26,6 +27,7 @@ Implemented local backend:
 - Duplicate message handling by `message_id` idempotency.
 - Per-conversation concurrency guard.
 - Structured logs and debug APIs.
+- UI panels for workflow setup, mock chat, history, session, and execution trace.
 - Unit and integration tests.
 - gRPC intent contract/service/test for RPC lessons.
 - README, API contract, architecture, database, demo HTTP, and 10-session training program.
