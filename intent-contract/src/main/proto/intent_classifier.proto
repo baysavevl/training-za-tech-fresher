@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package zalo.training.intent;
+
+option java_multiple_files = true;
+option java_package = "com.zalo.training.intent.contract";
+option java_outer_classname = "IntentClassifierProto";
+
+service IntentClassifier {
+  rpc ClassifyIntent(ClassifyIntentRequest) returns (ClassifyIntentResponse);
+}
+
+message ClassifyIntentRequest {
+  string message_id = 1;
+  string conversation_id = 2;
+  string content = 3;
+  string trace_id = 4;
+}
+
+message ClassifyIntentResponse {
+  string intent = 1;
+  double confidence = 2;
+  string reason = 3;
+}

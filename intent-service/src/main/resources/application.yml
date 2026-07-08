@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: intent-service
+
+intent:
+  grpc:
+    server-enabled: true
+    port: 9091

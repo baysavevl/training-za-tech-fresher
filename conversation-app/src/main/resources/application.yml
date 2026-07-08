@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: conversation-app
+  datasource:
+    url: jdbc:h2:mem:conversation_automation;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+  sql:
+    init:
+      mode: always
+      continue-on-error: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+conversation:
+  automation:
+    worker-count: 2
+    queue-capacity: 256
+  intent:
+    mode: local
+    grpc-host: localhost
+    grpc-port: 9091
+    deadline-millis: 500
