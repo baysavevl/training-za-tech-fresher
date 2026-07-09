@@ -27,6 +27,23 @@ export const trainingTopics = [
         { label: 'Session update', detail: 'Move current_node_id once', tone: 'yellow' },
         { label: 'Message B', detail: 'Wait, then re-check state', tone: 'green' }
       ]
+    },
+    lecture: {
+      sections: [
+        'Define process, thread, task, critical section, shared mutable state, and why chat sessions are stateful.',
+        'Compare parallel work across conversations with serialized work inside the same conversation.',
+        'Explain idempotency as a concurrency companion: retry-safe APIs need both duplicate detection and state protection.'
+      ],
+      reading: [
+        'Code: conversation-app/mockchat/ConversationLockManager.java',
+        'Schema: message_idempotency and conversation_sessions.version',
+        'Test: ConversationLockManagerTest and MockChatFlowTest duplicate branch'
+      ],
+      lab: [
+        'Send one normal order message in the Automation Console.',
+        'Replay the same message ID and inspect History to confirm no duplicate rows.',
+        'Discuss how this local lock would change in a multi-node deployment.'
+      ]
     }
   },
   {
@@ -58,6 +75,23 @@ export const trainingTopics = [
         { label: 'Service', detail: 'Execute workflow', tone: 'green' },
         { label: 'RPC hook', detail: 'Typed internal call', tone: 'yellow' }
       ]
+    },
+    lecture: {
+      sections: [
+        'Define client/server ownership: the caller owns intent and the service owns data, rules, and persistence.',
+        'Separate REST resource APIs from RPC-style internal contracts and identify when each contract style fits.',
+        'Explain schema evolution, request/response DTOs, validation, correlation headers, and service boundary testing.'
+      ],
+      reading: [
+        'Code: MockChatController, AutomationController, MockChatChannelAdapter',
+        'Contract: docs/api/api-contract.md',
+        'RPC hook: intent-contract/src/main/proto/intent_classifier.proto'
+      ],
+      lab: [
+        'Create an automation through the console and map the request to POST /api/automations.',
+        'Publish the workflow and inspect how workflow versioning protects runtime execution.',
+        'Open the proto contract and discuss what changes are backward compatible.'
+      ]
     }
   },
   {
@@ -87,6 +121,23 @@ export const trainingTopics = [
         { label: 'Unit', detail: 'Engine and validator', tone: 'green' },
         { label: 'Integration', detail: 'MockMvc API flow', tone: 'blue' },
         { label: 'Smoke', detail: 'Application context', tone: 'yellow' }
+      ]
+    },
+    lecture: {
+      sections: [
+        'Define unit, integration, smoke, and regression tests using real examples from the project.',
+        'Teach testability by separating pure workflow execution from HTTP, database, and adapter boundaries.',
+        'Show how a failing test should describe behavior first, then guide the implementation.'
+      ],
+      reading: [
+        'Code: WorkflowExecutionEngineTest and WorkflowValidatorTest',
+        'Integration: ConversationApiTest and MockChatFlowTest',
+        'Smoke: ContextSmokeTest and IntentServiceContextTest'
+      ],
+      lab: [
+        'Change a workflow fallback rule and predict which test level should catch it.',
+        'Write a new unit test for an OPTION edge before changing the engine.',
+        'Run mvn test and explain the cost difference between fast unit tests and full integration tests.'
       ]
     }
   },
@@ -119,21 +170,128 @@ export const trainingTopics = [
         { label: 'Trace', detail: 'Persist debug rows', tone: 'red' },
         { label: 'Metrics', detail: 'Actuator endpoint', tone: 'yellow' }
       ]
+    },
+    lecture: {
+      sections: [
+        'Define logs, metrics, traces, and durable debug records, then show what each signal answers.',
+        'Explain correlation IDs and why workflow incidents require request_id, message_id, conversation_id, session_id, and node_id.',
+        'Connect structured logs with the debug APIs so freshers can reconstruct a real message path.'
+      ],
+      reading: [
+        'Code: MockChatService structured log statement',
+        'Schema: execution_traces and action_executions tables',
+        'Endpoints: /api/mock-chat/conversations/{conversationId}/trace and /actuator/metrics'
+      ],
+      lab: [
+        'Send a message and open History, Session, and Debug Trace.',
+        'Find the same request_id in response, trace rows, and service logs.',
+        'Design one counter and one latency metric for ACTION node execution.'
+      ]
     }
   }
 ]
 
 export const learningSessions = [
-  { number: '01', duration: '90 min', title: 'Product, client/server, REST contract', demo: 'Create a customer conversation from the console and map every UI field to the REST API contract.' },
-  { number: '02', duration: '90 min', title: 'Database design', demo: 'Walk through config tables, runtime state tables, message history, trace rows, and the idempotency key.' },
-  { number: '03', duration: '90 min', title: 'Workflow JSON and publish validation', demo: 'Edit the sample workflow, break a validation rule, then publish a corrected version.' },
-  { number: '04', duration: '90 min', title: 'State machine execution engine', demo: 'Trace START to QUESTION to ACTION to END while watching current_node_id move.' },
-  { number: '05', duration: '90 min', title: 'Mock Chat Adapter', demo: 'Compare incoming channel payload with the internal inbound message consumed by the service.' },
-  { number: '06', duration: '90 min', title: 'Idempotency', demo: 'Replay the same message ID and verify that the response is reused without duplicate history rows.' },
-  { number: '07', duration: '90 min', title: 'Concurrency', demo: 'Explain why same-conversation messages are serialized while different conversations can run in parallel.' },
-  { number: '08', duration: '90 min', title: 'Reliability and action adapter', demo: 'Inspect mock action execution and design retry, backoff, and dead-letter extensions.' },
-  { number: '09', duration: '90 min', title: 'Observability', demo: 'Use History, Session, Debug Trace, structured logs, and metrics to reconstruct a message flow.' },
-  { number: '10', duration: '90 min', title: 'Testing and capstone', demo: 'Build a refund-support automation and defend it with one unit test and one integration test.' }
+  {
+    number: '01',
+    duration: '90 min',
+    topicId: 'rpc',
+    title: 'Product, client/server, REST contract',
+    demo: 'Create a customer conversation from the console and map every UI field to the REST API contract.',
+    lesson: 'Start from the product behavior, define client responsibility, service responsibility, request body, response body, validation rule, and failure contract before reading the implementation.',
+    reading: ['docs/api/api-contract.md', 'MockChatController and AutomationController'],
+    lab: ['Create an automation from the console.', 'Map each form field to a REST request field.']
+  },
+  {
+    number: '02',
+    duration: '90 min',
+    topicId: 'rpc',
+    title: 'Database design',
+    demo: 'Walk through config tables, runtime state tables, message history, trace rows, and the idempotency key.',
+    lesson: 'Separate tables by lifecycle: automation configuration changes slowly, workflow versions are immutable once published, sessions change per message, and traces are append-only debug evidence.',
+    reading: ['docs/design/database.md', 'conversation-app/src/main/resources/schema.sql'],
+    lab: ['Draw the schema groups on a whiteboard.', 'Explain which indexes protect common debug queries.']
+  },
+  {
+    number: '03',
+    duration: '90 min',
+    topicId: 'te',
+    title: 'Workflow JSON and publish validation',
+    demo: 'Edit the sample workflow, break a validation rule, then publish a corrected version.',
+    lesson: 'Treat workflow JSON as a graph contract. Validation should reject missing START nodes, invalid edge targets, missing node config, and unsafe runtime paths before publish.',
+    reading: ['WorkflowValidator.java', 'WorkflowDefinition.java'],
+    lab: ['Remove the START edge and observe publish failure.', 'Add a validation test before changing validator logic.']
+  },
+  {
+    number: '04',
+    duration: '90 min',
+    topicId: 'te',
+    title: 'State machine execution engine',
+    demo: 'Trace START to QUESTION to ACTION to END while watching current_node_id move.',
+    lesson: 'A conversation workflow is a state machine. The engine should be deterministic, stateless, and testable while the service layer owns persistence and side effects.',
+    reading: ['WorkflowExecutionEngine.java', 'WorkflowExecutionEngineTest.java'],
+    lab: ['Send a matching order message.', 'Explain why the session ends at the END node.']
+  },
+  {
+    number: '05',
+    duration: '90 min',
+    topicId: 'rpc',
+    title: 'Mock Chat Adapter',
+    demo: 'Compare incoming channel payload with the internal inbound message consumed by the service.',
+    lesson: 'Adapters isolate external channel details from business logic. This lets the engine stay stable when the system later adds Zalo, web chat, webhook, or another channel.',
+    reading: ['ChannelAdapter.java', 'MockChatChannelAdapter.java'],
+    lab: ['Compare API request DTO with InboundChatMessage.', 'Design fields needed for a second chat channel.']
+  },
+  {
+    number: '06',
+    duration: '90 min',
+    topicId: 'pc',
+    title: 'Idempotency',
+    demo: 'Replay the same message ID and verify that the response is reused without duplicate history rows.',
+    lesson: 'Distributed producers retry. A backend should treat duplicate delivery as a normal event, not as a rare bug, and return the original outcome safely.',
+    reading: ['MessageIdempotencyRepository.java', 'MockChatFlowTest.java'],
+    lab: ['Send a message once.', 'Replay the same message ID and confirm History does not grow.']
+  },
+  {
+    number: '07',
+    duration: '90 min',
+    topicId: 'pc',
+    title: 'Concurrency',
+    demo: 'Explain why same-conversation messages are serialized while different conversations can run in parallel.',
+    lesson: 'Concurrency design starts by identifying the unit of consistency. In this project, the conversation is the consistency boundary for session updates.',
+    reading: ['ConversationLockManager.java', 'ConversationSessionRepository.java'],
+    lab: ['Explain local JVM lock limitations.', 'Draft optimistic locking SQL for session version.']
+  },
+  {
+    number: '08',
+    duration: '90 min',
+    topicId: 'ob',
+    title: 'Reliability and action adapter',
+    demo: 'Inspect mock action execution and design retry, backoff, and dead-letter extensions.',
+    lesson: 'External actions can fail. Production design needs clear action boundaries, timeout behavior, retry policy, backoff strategy, and failed-task storage.',
+    reading: ['ActionAdapter.java', 'MockActionAdapter.java'],
+    lab: ['Inspect action_executions after ORDER_LOOKUP.', 'Design a retry table for async action processing.']
+  },
+  {
+    number: '09',
+    duration: '90 min',
+    topicId: 'ob',
+    title: 'Observability',
+    demo: 'Use History, Session, Debug Trace, structured logs, and metrics to reconstruct a message flow.',
+    lesson: 'Observability is not decoration. It is the system contract that lets engineers explain what happened for one user, one message, one session, and one workflow node.',
+    reading: ['MockChatService.java', 'docs/design/architecture.md#10-observability'],
+    lab: ['Open trace API after a message.', 'Map request_id to message history and execution trace.']
+  },
+  {
+    number: '10',
+    duration: '90 min',
+    topicId: 'te',
+    title: 'Testing and capstone',
+    demo: 'Build a refund-support automation and defend it with one unit test and one integration test.',
+    lesson: 'The capstone checks whether freshers can connect product behavior, API contract, workflow design, state safety, observability, and testing into one coherent change.',
+    reading: ['docs/training/knowledge-program.md', 'MockChatFlowTest.java'],
+    lab: ['Build refund-support workflow JSON.', 'Present happy path, fallback path, and test evidence.']
+  }
 ]
 
 export const studyCards = [

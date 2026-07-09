@@ -231,7 +231,7 @@ label {
   margin-top: 22px;
 }
 
-.training-actions a,
+.training-actions button,
 .text-link {
   align-items: center;
   border-radius: 999px;
@@ -243,11 +243,11 @@ label {
   text-decoration: none;
 }
 
-.training-actions a {
+.training-actions button {
   background: #e8f0fe;
 }
 
-.training-actions a:hover,
+.training-actions button:hover,
 .text-link:hover {
   background: #d2e3fc;
 }
@@ -353,7 +353,7 @@ label {
   border-bottom: 1px solid var(--line);
   display: grid;
   gap: 14px;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 92px minmax(0, 1fr) auto;
   margin-bottom: 18px;
   padding-bottom: 16px;
 }
@@ -537,7 +537,7 @@ label {
   border-radius: 8px;
   display: grid;
   gap: 12px;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto auto;
   padding: 12px;
 }
 
@@ -562,6 +562,140 @@ label {
   color: var(--blue);
   font-weight: 800;
   padding: 6px 10px;
+}
+
+.run-card,
+.knowledge-tab {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.run-card {
+  align-items: center;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.run-card h3 {
+  font-size: 20px;
+  margin: 4px 0 6px;
+}
+
+.run-card p:not(.eyebrow),
+.button-note,
+.step-help span {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: end;
+}
+
+.step-help {
+  background: #e8f0fe;
+  border: 1px solid #d2e3fc;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.button-note {
+  font-size: 13px;
+}
+
+.topic-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.topic-tabs button.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.knowledge-detail-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.lecture-card {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.lecture-card.featured {
+  background: #e8f0fe;
+  border-color: #d2e3fc;
+}
+
+.lecture-card h4 {
+  font-size: 13px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.lecture-card p,
+.lecture-card li {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.lecture-card ol,
+.lecture-card ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.mini-list {
+  display: grid;
+  gap: 6px;
+}
+
+.mini-list span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mini-list code {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #d2e3fc;
+  border-radius: 8px;
+  padding: 7px;
+}
+
+.related-sessions {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.related-sessions div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .app-shell {
@@ -871,8 +1005,14 @@ code {
 
   .grid,
   .knowledge-grid,
-  .topic-lab {
+  .topic-lab,
+  .knowledge-detail-grid,
+  .run-card {
     grid-template-columns: 1fr;
+  }
+
+  .run-actions {
+    justify-content: start;
   }
 
   .flow-board,
@@ -915,6 +1055,7 @@ code {
   .topbar,
   .field-row,
   .topic-header,
+  .run-card,
   .session-item {
     align-items: stretch;
     display: grid;

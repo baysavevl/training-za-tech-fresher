@@ -14,37 +14,10 @@ import {
   Send,
   Workflow
 } from 'lucide-react'
+import { withJsonHeaders } from './apiClient.js'
+import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
 import { learningSessions, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
-
-const SAMPLE_WORKFLOW = {
-  nodes: [
-    { id: 'start', type: 'START', config: {} },
-    { id: 'ask', type: 'QUESTION', config: { message: 'How can I help you today?' } },
-    { id: 'lookup', type: 'ACTION', config: { action: 'ORDER_LOOKUP' } },
-    { id: 'handoff', type: 'HANDOFF', config: { message: 'I will route this conversation to a support specialist.' } },
-    { id: 'end', type: 'END', config: { message: 'The request has been handled.' } }
-  ],
-  edges: [
-    { from: 'start', to: 'ask', matchType: 'ALWAYS', matchValue: '' },
-    { from: 'ask', to: 'lookup', matchType: 'KEYWORD', matchValue: 'order' },
-    { from: 'ask', to: 'handoff', matchType: 'KEYWORD', matchValue: 'agent' },
-    { from: 'ask', to: 'end', matchType: 'FALLBACK', matchValue: '' },
-    { from: 'lookup', to: 'end', matchType: 'ALWAYS', matchValue: '' }
-  ]
-}
-
-const initialState = {
-  automationName: 'Order support',
-  automationId: '',
-  workflowVersionId: '',
-  userId: 'mock-user-001',
-  messageId: 'msg-001',
-  requestId: 'request-ui-001',
-  text: 'please check order A123',
-  conversationId: '',
-  workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2)
-}
 
 function App() {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -74,7 +47,7 @@ function App() {
 function Dashboard({ navigate }) {
   const [state, setState] = useState(() => {
     const saved = localStorage.getItem('conversationAutomationUi')
-    return saved ? { ...initialState, ...JSON.parse(saved) } : initialState
+    return hydrateDemoState(saved)
   })
   const [history, setHistory] = useState([])
   const [session, setSession] = useState(null)
@@ -84,7 +57,7 @@ function Dashboard({ navigate }) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    localStorage.setItem('conversationAutomationUi', JSON.stringify(state))
+    localStorage.setItem('conversationAutomationUi', JSON.stringify({ ...state, _version: DEMO_STATE_VERSION }))
   }, [state])
 
   const idsReady = useMemo(() => ({
@@ -105,13 +78,7 @@ function Dashboard({ navigate }) {
   }
 
   async function request(path, options = {}) {
-    const response = await fetch(path, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      },
-      ...options
-    })
+    const response = await fetch(path, withJsonHeaders(options))
     const raw = await response.text()
     const body = raw ? JSON.parse(raw) : null
     if (!response.ok) {
@@ -143,6 +110,7 @@ function Dashboard({ navigate }) {
       patch({ automationId: result.id, workflowVersionId: '' })
       setLastResponse(result)
     }
+    return result
   }
 
   async function createWorkflow() {
@@ -155,6 +123,7 @@ function Dashboard({ navigate }) {
       patch({ workflowVersionId: result.id })
       setLastResponse(result)
     }
+    return result
   }
 
   async function publishWorkflow() {
@@ -164,6 +133,7 @@ function Dashboard({ navigate }) {
     if (result) {
       setLastResponse(result)
     }
+    return result
   }
 
   async function sendMessage(duplicate = false) {
@@ -183,6 +153,53 @@ function Dashboard({ navigate }) {
       patch({ conversationId: result.conversationId })
       setLastResponse(result)
       await refreshDebug(result.conversationId)
+    }
+    return result
+  }
+
+  async function quickSetup(sendAfterPublish = false) {
+    const result = await run(sendAfterPublish ? 'Sample workflow published and message sent' : 'Sample workflow published', async () => {
+      const definition = JSON.parse(state.workflowJson)
+      const automation = state.automationId
+        ? { id: state.automationId }
+        : await request('/api/automations', {
+          method: 'POST',
+          body: JSON.stringify({ name: state.automationName })
+        })
+      const workflow = await request(`/api/automations/${automation.id}/workflows`, {
+        method: 'POST',
+        body: JSON.stringify({ definition })
+      })
+      const published = await request(`/api/automations/${automation.id}/workflows/${workflow.id}/publish`, {
+        method: 'POST'
+      })
+      if (!sendAfterPublish) {
+        return { automation, workflow, published }
+      }
+      const message = await request('/api/mock-chat/messages', {
+        method: 'POST',
+        headers: { 'X-Request-Id': state.requestId },
+        body: JSON.stringify({
+          userId: state.userId,
+          conversationId: state.conversationId || null,
+          messageId: state.messageId,
+          automationId: automation.id,
+          text: state.text
+        })
+      })
+      return { automation, workflow, published, message }
+    })
+
+    if (result) {
+      patch({
+        automationId: result.automation.id,
+        workflowVersionId: result.workflow.id,
+        conversationId: result.message?.conversationId || state.conversationId
+      })
+      setLastResponse(result.message || result.published)
+      if (result.message?.conversationId) {
+        await refreshDebug(result.message.conversationId)
+      }
     }
   }
 
@@ -205,7 +222,7 @@ function Dashboard({ navigate }) {
   }
 
   function resetDemo() {
-    setState(initialState)
+    setState(initialDemoState)
     setHistory([])
     setSession(null)
     setTrace([])
@@ -255,9 +272,32 @@ function Dashboard({ navigate }) {
           </div>
         </header>
 
+        <section className="run-card">
+          <div>
+            <p className="eyebrow">Guided demo</p>
+            <h3>Create, publish, then send without guessing button order.</h3>
+            <p>
+              Use quick setup when mentoring live. It creates the automation, saves the sample
+              workflow draft, publishes it, and can optionally send the first chat message.
+            </p>
+          </div>
+          <div className="run-actions">
+            <button type="button" onClick={() => quickSetup(false)} disabled={busy}>
+              <CheckCircle2 size={16} aria-hidden="true" /> Set up + publish
+            </button>
+            <button type="button" className="primary" onClick={() => quickSetup(true)} disabled={busy}>
+              <Send size={16} aria-hidden="true" /> Run full demo
+            </button>
+          </div>
+        </section>
+
         <div className="grid">
           <section className="panel setup-panel">
             <PanelTitle icon={<Database size={18} />} title="Workflow setup" />
+            <div className="step-help">
+              <strong>Manual order</strong>
+              <span>Create automation, save draft, publish, then send message.</span>
+            </div>
             <div className="field-row">
               <label>
                 Automation name
@@ -284,6 +324,13 @@ function Dashboard({ navigate }) {
                 <CheckCircle2 size={16} aria-hidden="true" /> Publish
               </button>
             </div>
+            <p className="button-note">
+              {!idsReady.automation
+                ? 'Save draft is locked until an automation exists. Use Create or Set up + publish.'
+                : !idsReady.workflow
+                  ? 'Publish is locked until the workflow draft is saved.'
+                  : 'Workflow draft is ready to publish.'}
+            </p>
           </section>
 
           <section className="panel chat-panel">
@@ -314,6 +361,13 @@ function Dashboard({ navigate }) {
                 <Copy size={16} aria-hidden="true" /> Replay duplicate
               </button>
             </div>
+            <p className="button-note">
+              {!idsReady.automation
+                ? 'Send is locked until an automation exists. Use Run full demo for the fastest path.'
+                : !idsReady.workflow
+                  ? 'Publish the workflow before sending a message.'
+                  : 'Send is ready. Replay duplicate unlocks after the first conversation exists.'}
+            </p>
             <JsonBlock title="Last response" data={lastResponse} />
           </section>
 
@@ -423,6 +477,19 @@ function FlowConnector() {
 }
 
 function TrainingPortal({ navigate }) {
+  const [activeTopicId, setActiveTopicId] = useState(trainingTopics[0].id)
+  const [activeSessionNumber, setActiveSessionNumber] = useState(learningSessions[0].number)
+  const activeTopic = trainingTopics.find(topic => topic.id === activeTopicId) || trainingTopics[0]
+  const activeSession = learningSessions.find(session => session.number === activeSessionNumber) || learningSessions[0]
+
+  function openKnowledge(topicId, sessionNumber = activeSessionNumber) {
+    setActiveTopicId(topicId)
+    setActiveSessionNumber(sessionNumber)
+    window.setTimeout(() => {
+      document.getElementById('knowledge-tab')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
   return (
     <main className="training-page">
       <nav className="landing-nav">
@@ -452,14 +519,21 @@ function TrainingPortal({ navigate }) {
         </p>
         <div className="training-actions">
           {trainingTopics.map(topic => (
-            <a href={`#${topic.id}`} key={topic.id}>{topic.label}</a>
+            <button type="button" onClick={() => openKnowledge(topic.id)} key={topic.id}>{topic.label}</button>
           ))}
         </div>
       </section>
 
+      <KnowledgeDetail
+        topic={activeTopic}
+        session={activeSession}
+        onOpenTopic={openKnowledge}
+        navigate={navigate}
+      />
+
       <section className="topic-stack" aria-label="Foundation topics">
         {trainingTopics.map(topic => (
-          <TopicModule topic={topic} navigate={navigate} key={topic.id} />
+          <TopicModule topic={topic} navigate={navigate} onOpenKnowledge={openKnowledge} key={topic.id} />
         ))}
       </section>
 
@@ -477,6 +551,9 @@ function TrainingPortal({ navigate }) {
                 <p>{session.demo}</p>
               </div>
               <small>{session.duration}</small>
+              <button type="button" onClick={() => openKnowledge(session.topicId, session.number)}>
+                Open detail
+              </button>
             </article>
           ))}
         </div>
@@ -496,7 +573,81 @@ function TrainingPortal({ navigate }) {
   )
 }
 
-function TopicModule({ topic, navigate }) {
+function KnowledgeDetail({ topic, session, onOpenTopic, navigate }) {
+  const relatedSessions = learningSessions.filter(item => item.topicId === topic.id)
+
+  return (
+    <section className="knowledge-tab" id="knowledge-tab">
+      <div className="section-heading">
+        <p className="eyebrow">Knowledge tab</p>
+        <h3>{topic.label}: {topic.title}</h3>
+      </div>
+
+      <div className="topic-tabs" role="tablist" aria-label="Training knowledge topics">
+        {trainingTopics.map(item => (
+          <button
+            type="button"
+            className={item.id === topic.id ? 'active' : ''}
+            onClick={() => onOpenTopic(item.id)}
+            key={item.id}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="knowledge-detail-grid">
+        <article className="lecture-card">
+          <h4>Lecture notes</h4>
+          <ol>
+            {topic.lecture.sections.map(section => <li key={section}>{section}</li>)}
+          </ol>
+        </article>
+        <article className="lecture-card">
+          <h4>Reading and code references</h4>
+          <ul>
+            {topic.lecture.reading.map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </article>
+        <article className="lecture-card">
+          <h4>Lab and demo steps</h4>
+          <ul>
+            {topic.lecture.lab.map(item => <li key={item}>{item}</li>)}
+          </ul>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Open automation console
+          </button>
+        </article>
+        <article className="lecture-card featured">
+          <h4>Selected session detail</h4>
+          <strong>{session.number}. {session.title}</strong>
+          <p>{session.lesson}</p>
+          <div className="mini-list">
+            <span>Reading</span>
+            {session.reading.map(item => <code key={item}>{item}</code>)}
+          </div>
+          <div className="mini-list">
+            <span>Lab</span>
+            {session.lab.map(item => <code key={item}>{item}</code>)}
+          </div>
+        </article>
+      </div>
+
+      <div className="related-sessions">
+        <strong>Related roadmap sessions</strong>
+        <div>
+          {relatedSessions.map(item => (
+            <button type="button" onClick={() => onOpenTopic(item.topicId, item.number)} key={item.number}>
+              {item.number} · {item.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function TopicModule({ topic, navigate, onOpenKnowledge }) {
   return (
     <article className="topic-module" id={topic.id}>
       <header className="topic-header">
@@ -505,6 +656,7 @@ function TopicModule({ topic, navigate }) {
           <h3>{topic.title}</h3>
           <p>{topic.summary}</p>
         </div>
+        <button type="button" onClick={() => onOpenKnowledge(topic.id)}>Open detail</button>
       </header>
 
       <div className="knowledge-grid">
