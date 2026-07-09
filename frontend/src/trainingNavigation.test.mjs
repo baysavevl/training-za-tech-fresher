@@ -4,7 +4,8 @@ import { test } from 'node:test'
 import {
   firstSessionNumberForTopic,
   knowledgeSelectionForTopic,
-  roadmapDetailSelection
+  roadmapDetailSelection,
+  toggleExpandedSession
 } from './trainingNavigation.js'
 
 test('knowledge topic selection uses the first session that belongs to the topic', () => {
@@ -22,4 +23,9 @@ test('roadmap detail opens the selected session inline instead of jumping to kno
     sessionNumber: '09',
     scrollTarget: 'session-09'
   })
+})
+
+test('roadmap detail expansion keeps existing sessions open while opening another one', () => {
+  assert.deepEqual(toggleExpandedSession(['02'], '04'), ['02', '04'])
+  assert.deepEqual(toggleExpandedSession(['02', '04'], '02'), ['04'])
 })

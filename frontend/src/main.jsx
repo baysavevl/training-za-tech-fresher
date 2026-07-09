@@ -7,16 +7,19 @@ import {
   Copy,
   Database,
   FileJson,
+  FileText,
   MessageSquare,
   Play,
   RefreshCw,
   RotateCcw,
   Send,
-  Workflow
+  Workflow,
+  X
 } from 'lucide-react'
 import { withJsonHeaders } from './apiClient.js'
 import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
-import { knowledgeSelectionForTopic, roadmapDetailSelection } from './trainingNavigation.js'
+import { knowledgeSelectionForTopic, roadmapDetailSelection, toggleExpandedSession } from './trainingNavigation.js'
+import { sourceReferencesFor } from './trainingSources.js'
 import { learningSessions, projectBrief, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
 
@@ -481,7 +484,10 @@ function TrainingPortal({ navigate }) {
   const [activeTopicId, setActiveTopicId] = useState(trainingTopics[0].id)
   const [activeSessionNumber, setActiveSessionNumber] = useState(learningSessions[0].number)
   const [activeBriefTabId, setActiveBriefTabId] = useState(projectBrief.tabs[0].id)
-  const [expandedSessionNumber, setExpandedSessionNumber] = useState(learningSessions[0].number)
+  const [expandedSessionNumbers, setExpandedSessionNumbers] = useState([learningSessions[0].number])
+  const [sourceFile, setSourceFile] = useState(null)
+  const [sourceError, setSourceError] = useState('')
+  const [sourceLoading, setSourceLoading] = useState(false)
   const activeTopic = trainingTopics.find(topic => topic.id === activeTopicId) || trainingTopics[0]
 
   function scrollToSection(targetId) {
@@ -499,9 +505,29 @@ function TrainingPortal({ navigate }) {
 
   function openRoadmapDetail(sessionNumber) {
     const selection = roadmapDetailSelection(sessionNumber)
-    setExpandedSessionNumber(current => current === selection.sessionNumber ? '' : selection.sessionNumber)
+    setExpandedSessionNumbers(current => toggleExpandedSession(current, selection.sessionNumber))
     setActiveSessionNumber(selection.sessionNumber)
     scrollToSection(selection.scrollTarget)
+  }
+
+  async function openSource(path) {
+    setSourceLoading(true)
+    setSourceError('')
+    try {
+      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
+      const body = await response.json()
+      if (!response.ok) {
+        throw new Error(body?.message || `${response.status} ${response.statusText}`)
+      }
+      setSourceFile(body)
+      scrollToSection('source-viewer')
+    } catch (error) {
+      setSourceError(error.message)
+      setSourceFile(null)
+      scrollToSection('source-viewer')
+    } finally {
+      setSourceLoading(false)
+    }
   }
 
   return (
@@ -544,7 +570,18 @@ function TrainingPortal({ navigate }) {
         topic={activeTopic}
         onOpenTopic={openKnowledge}
         onOpenSessionDetail={openRoadmapDetail}
+        onOpenSource={openSource}
         navigate={navigate}
+      />
+
+      <SourceViewer
+        source={sourceFile}
+        loading={sourceLoading}
+        error={sourceError}
+        onClose={() => {
+          setSourceFile(null)
+          setSourceError('')
+        }}
       />
 
       <section className="topic-stack" aria-label="Foundation topics">
@@ -561,7 +598,7 @@ function TrainingPortal({ navigate }) {
         <div className="session-list">
           {learningSessions.map(session => (
             <article
-              className={`session-item ${expandedSessionNumber === session.number ? 'expanded' : ''}`}
+              className={`session-item ${expandedSessionNumbers.includes(session.number) ? 'expanded' : ''}`}
               id={`session-${session.number}`}
               key={session.number}
             >
@@ -573,11 +610,11 @@ function TrainingPortal({ navigate }) {
                 </div>
                 <small>{session.duration}</small>
                 <button type="button" onClick={() => openRoadmapDetail(session.number)}>
-                  {expandedSessionNumber === session.number ? 'Hide detail' : 'Open detail'}
+                  {expandedSessionNumbers.includes(session.number) ? 'Hide detail' : 'Open detail'}
                 </button>
               </div>
-              {expandedSessionNumber === session.number ? (
-                <SessionDetail session={session} onOpenConcept={openKnowledge} />
+              {expandedSessionNumbers.includes(session.number) ? (
+                <SessionDetail session={session} onOpenConcept={openKnowledge} onOpenSource={openSource} />
               ) : null}
             </article>
           ))}
@@ -633,7 +670,7 @@ function ProjectBrief({ activeTabId, onChangeTab }) {
   )
 }
 
-function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, navigate }) {
+function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, onOpenSource, navigate }) {
   const relatedSessions = learningSessions.filter(item => item.topicId === topic.id)
   const demo = topic.conceptDemo
 
@@ -666,9 +703,7 @@ function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, navigate }) 
         </article>
         <article className="lecture-card">
           <h4>Reading and code references</h4>
-          <ul>
-            {topic.lecture.reading.map(item => <li key={item}>{item}</li>)}
-          </ul>
+          <SourceReferenceList items={topic.lecture.reading} onOpenSource={onOpenSource} />
         </article>
         <article className="lecture-card">
           <h4>{demo.title}</h4>
@@ -754,7 +789,7 @@ function TopicModule({ topic, navigate, onOpenKnowledge }) {
   )
 }
 
-function SessionDetail({ session, onOpenConcept }) {
+function SessionDetail({ session, onOpenConcept, onOpenSource }) {
   const topic = trainingTopics.find(item => item.id === session.topicId) || trainingTopics[0]
 
   return (
@@ -766,7 +801,7 @@ function SessionDetail({ session, onOpenConcept }) {
       </div>
       <div className="mini-list">
         <span>Reading</span>
-        {session.reading.map(item => <code key={item}>{item}</code>)}
+        <SourceReferenceList items={session.reading} onOpenSource={onOpenSource} compact />
       </div>
       <div className="mini-list">
         <span>Lab</span>
@@ -776,6 +811,54 @@ function SessionDetail({ session, onOpenConcept }) {
         <Play size={16} aria-hidden="true" /> Open concept lab
       </button>
     </div>
+  )
+}
+
+function SourceReferenceList({ items, onOpenSource, compact = false }) {
+  return (
+    <div className={`source-list ${compact ? 'compact' : ''}`}>
+      {items.map(item => {
+        const references = sourceReferencesFor(item)
+        return (
+          <div className="source-item" key={item}>
+            <code>{item}</code>
+            {references.length > 0 ? (
+              <div className="source-actions">
+                {references.map(reference => (
+                  <button type="button" onClick={() => onOpenSource(reference.path)} key={reference.path}>
+                    <FileText size={14} aria-hidden="true" /> View {reference.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SourceViewer({ source, loading, error, onClose }) {
+  if (!source && !loading && !error) {
+    return null
+  }
+
+  return (
+    <section className="source-viewer" id="source-viewer">
+      <header>
+        <div>
+          <p className="eyebrow">Source viewer</p>
+          <h3>{source?.path || 'Loading source'}</h3>
+          {source?.language ? <span>{source.language}</span> : null}
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close source viewer">
+          <X size={16} aria-hidden="true" /> Close
+        </button>
+      </header>
+      {loading ? <p className="empty">Loading source...</p> : null}
+      {error ? <p className="source-error">{error}</p> : null}
+      {source ? <pre><code>{source.content}</code></pre> : null}
+    </section>
   )
 }
 

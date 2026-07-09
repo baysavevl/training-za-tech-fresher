@@ -26,3 +26,10 @@ export function roadmapDetailSelection(sessionNumber) {
     scrollTarget: `session-${session.number}`
   }
 }
+
+export function toggleExpandedSession(expandedSessionNumbers, sessionNumber) {
+  if (expandedSessionNumbers.includes(sessionNumber)) {
+    return expandedSessionNumbers.filter(item => item !== sessionNumber)
+  }
+  return [...expandedSessionNumbers, sessionNumber]
+}
