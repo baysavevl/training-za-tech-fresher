@@ -301,7 +301,8 @@ label {
 .entry-card,
 .study-grid article,
 .topic-module,
-.roadmap {
+.roadmap,
+.project-brief {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -531,17 +532,22 @@ label {
 }
 
 .session-item {
-  align-items: center;
   background: #f8fafd;
   border: 1px solid var(--line);
   border-radius: 8px;
+  display: grid;
+  overflow: hidden;
+}
+
+.session-summary {
+  align-items: center;
   display: grid;
   gap: 12px;
   grid-template-columns: 48px minmax(0, 1fr) auto auto;
   padding: 12px;
 }
 
-.session-item span {
+.session-number {
   align-items: center;
   background: var(--blue);
   border-radius: 8px;
@@ -564,14 +570,101 @@ label {
   padding: 6px 10px;
 }
 
+.session-detail {
+  background: #ffffff;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto;
+  padding: 16px;
+}
+
+.session-detail-main {
+  display: grid;
+  gap: 6px;
+}
+
+.session-detail h4 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.session-detail p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.session-detail button {
+  align-self: start;
+}
+
 .run-card,
-.knowledge-tab {
+.knowledge-tab,
+.project-brief {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow-1);
   margin-bottom: 16px;
   padding: 18px;
+}
+
+.project-brief {
+  display: grid;
+  gap: 16px;
+}
+
+.brief-heading {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.brief-heading h3 {
+  font-size: 28px;
+  margin: 4px 0 6px;
+}
+
+.brief-heading p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 760px;
+}
+
+.brief-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: end;
+}
+
+.brief-tabs button.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+}
+
+.brief-panel {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.brief-panel h4 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.brief-panel ol {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+  padding-left: 22px;
 }
 
 .run-card {
@@ -630,15 +723,18 @@ label {
 .knowledge-detail-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .lecture-card {
+  align-content: start;
   background: #f8fafd;
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   gap: 10px;
+  min-width: 0;
+  overflow: hidden;
   padding: 14px;
 }
 
@@ -657,6 +753,7 @@ label {
 .lecture-card li {
   color: var(--muted);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .lecture-card ol,
@@ -682,6 +779,30 @@ label {
   border: 1px solid #d2e3fc;
   border-radius: 8px;
   padding: 7px;
+}
+
+.concept-evidence button {
+  justify-self: start;
+}
+
+.mentor-prompt {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid #d2e3fc;
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+}
+
+.mentor-prompt span {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.mentor-prompt p {
+  margin: 0;
 }
 
 .related-sessions {
@@ -1007,11 +1128,14 @@ code {
   .knowledge-grid,
   .topic-lab,
   .knowledge-detail-grid,
-  .run-card {
+  .run-card,
+  .brief-heading,
+  .session-detail {
     grid-template-columns: 1fr;
   }
 
-  .run-actions {
+  .run-actions,
+  .brief-tabs {
     justify-content: start;
   }
 
@@ -1055,8 +1179,10 @@ code {
   .topbar,
   .field-row,
   .topic-header,
+  .session-summary,
   .run-card,
-  .session-item {
+  .brief-heading,
+  .session-detail {
     align-items: stretch;
     display: grid;
     gap: 10px;

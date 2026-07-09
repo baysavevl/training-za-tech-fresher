@@ -16,7 +16,8 @@ import {
 } from 'lucide-react'
 import { withJsonHeaders } from './apiClient.js'
 import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
-import { learningSessions, studyCards, trainingTopics } from './trainingContent.js'
+import { knowledgeSelectionForTopic, roadmapDetailSelection } from './trainingNavigation.js'
+import { learningSessions, projectBrief, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
 
 function App() {
@@ -479,15 +480,28 @@ function FlowConnector() {
 function TrainingPortal({ navigate }) {
   const [activeTopicId, setActiveTopicId] = useState(trainingTopics[0].id)
   const [activeSessionNumber, setActiveSessionNumber] = useState(learningSessions[0].number)
+  const [activeBriefTabId, setActiveBriefTabId] = useState(projectBrief.tabs[0].id)
+  const [expandedSessionNumber, setExpandedSessionNumber] = useState(learningSessions[0].number)
   const activeTopic = trainingTopics.find(topic => topic.id === activeTopicId) || trainingTopics[0]
-  const activeSession = learningSessions.find(session => session.number === activeSessionNumber) || learningSessions[0]
 
-  function openKnowledge(topicId, sessionNumber = activeSessionNumber) {
-    setActiveTopicId(topicId)
-    setActiveSessionNumber(sessionNumber)
+  function scrollToSection(targetId) {
     window.setTimeout(() => {
-      document.getElementById('knowledge-tab')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 0)
+  }
+
+  function openKnowledge(topicId, preferredSessionNumber = activeSessionNumber) {
+    const selection = knowledgeSelectionForTopic(topicId, preferredSessionNumber)
+    setActiveTopicId(selection.topicId)
+    setActiveSessionNumber(selection.sessionNumber)
+    scrollToSection(selection.scrollTarget)
+  }
+
+  function openRoadmapDetail(sessionNumber) {
+    const selection = roadmapDetailSelection(sessionNumber)
+    setExpandedSessionNumber(current => current === selection.sessionNumber ? '' : selection.sessionNumber)
+    setActiveSessionNumber(selection.sessionNumber)
+    scrollToSection(selection.scrollTarget)
   }
 
   return (
@@ -524,10 +538,12 @@ function TrainingPortal({ navigate }) {
         </div>
       </section>
 
+      <ProjectBrief activeTabId={activeBriefTabId} onChangeTab={setActiveBriefTabId} />
+
       <KnowledgeDetail
         topic={activeTopic}
-        session={activeSession}
         onOpenTopic={openKnowledge}
+        onOpenSessionDetail={openRoadmapDetail}
         navigate={navigate}
       />
 
@@ -544,16 +560,25 @@ function TrainingPortal({ navigate }) {
         </div>
         <div className="session-list">
           {learningSessions.map(session => (
-            <article className="session-item" key={session.number}>
-              <span>{session.number}</span>
-              <div>
-                <h4>{session.title}</h4>
-                <p>{session.demo}</p>
+            <article
+              className={`session-item ${expandedSessionNumber === session.number ? 'expanded' : ''}`}
+              id={`session-${session.number}`}
+              key={session.number}
+            >
+              <div className="session-summary">
+                <span className="session-number">{session.number}</span>
+                <div>
+                  <h4>{session.title}</h4>
+                  <p>{session.demo}</p>
+                </div>
+                <small>{session.duration}</small>
+                <button type="button" onClick={() => openRoadmapDetail(session.number)}>
+                  {expandedSessionNumber === session.number ? 'Hide detail' : 'Open detail'}
+                </button>
               </div>
-              <small>{session.duration}</small>
-              <button type="button" onClick={() => openKnowledge(session.topicId, session.number)}>
-                Open detail
-              </button>
+              {expandedSessionNumber === session.number ? (
+                <SessionDetail session={session} onOpenConcept={openKnowledge} />
+              ) : null}
             </article>
           ))}
         </div>
@@ -573,13 +598,49 @@ function TrainingPortal({ navigate }) {
   )
 }
 
-function KnowledgeDetail({ topic, session, onOpenTopic, navigate }) {
+function ProjectBrief({ activeTabId, onChangeTab }) {
+  const activeTab = projectBrief.tabs.find(tab => tab.id === activeTabId) || projectBrief.tabs[0]
+
+  return (
+    <section className="project-brief" id="project-brief">
+      <div className="brief-heading">
+        <div>
+          <p className="eyebrow">Project brief</p>
+          <h3>{projectBrief.title}</h3>
+          <p>{projectBrief.subtitle}</p>
+        </div>
+        <div className="brief-tabs" role="tablist" aria-label="Project brief tabs">
+          {projectBrief.tabs.map(tab => (
+            <button
+              type="button"
+              className={tab.id === activeTab.id ? 'active' : ''}
+              onClick={() => onChangeTab(tab.id)}
+              key={tab.id}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="brief-panel">
+        <h4>{activeTab.label}</h4>
+        <ol>
+          {activeTab.items.map(item => <li key={item}>{item}</li>)}
+        </ol>
+      </div>
+    </section>
+  )
+}
+
+function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, navigate }) {
   const relatedSessions = learningSessions.filter(item => item.topicId === topic.id)
+  const demo = topic.conceptDemo
 
   return (
     <section className="knowledge-tab" id="knowledge-tab">
       <div className="section-heading">
-        <p className="eyebrow">Knowledge tab</p>
+        <p className="eyebrow">Concept lab</p>
         <h3>{topic.label}: {topic.title}</h3>
       </div>
 
@@ -610,26 +671,24 @@ function KnowledgeDetail({ topic, session, onOpenTopic, navigate }) {
           </ul>
         </article>
         <article className="lecture-card">
-          <h4>Lab and demo steps</h4>
-          <ul>
-            {topic.lecture.lab.map(item => <li key={item}>{item}</li>)}
-          </ul>
-          <button type="button" className="primary" onClick={() => navigate('/ui')}>
-            <Play size={16} aria-hidden="true" /> Open automation console
-          </button>
+          <h4>{demo.title}</h4>
+          <p>{demo.scenario}</p>
+          <ol>
+            {demo.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
         </article>
-        <article className="lecture-card featured">
-          <h4>Selected session detail</h4>
-          <strong>{session.number}. {session.title}</strong>
-          <p>{session.lesson}</p>
-          <div className="mini-list">
-            <span>Reading</span>
-            {session.reading.map(item => <code key={item}>{item}</code>)}
+        <article className="lecture-card featured concept-evidence">
+          <h4>Demo evidence</h4>
+          <ul>
+            {demo.evidence.map(item => <li key={item}>{item}</li>)}
+          </ul>
+          <div className="mentor-prompt">
+            <span>Mentor prompt</span>
+            <p>{demo.mentorPrompt}</p>
           </div>
-          <div className="mini-list">
-            <span>Lab</span>
-            {session.lab.map(item => <code key={item}>{item}</code>)}
-          </div>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Run this demo
+          </button>
         </article>
       </div>
 
@@ -637,7 +696,7 @@ function KnowledgeDetail({ topic, session, onOpenTopic, navigate }) {
         <strong>Related roadmap sessions</strong>
         <div>
           {relatedSessions.map(item => (
-            <button type="button" onClick={() => onOpenTopic(item.topicId, item.number)} key={item.number}>
+            <button type="button" onClick={() => onOpenSessionDetail(item.number)} key={item.number}>
               {item.number} · {item.title}
             </button>
           ))}
@@ -648,6 +707,8 @@ function KnowledgeDetail({ topic, session, onOpenTopic, navigate }) {
 }
 
 function TopicModule({ topic, navigate, onOpenKnowledge }) {
+  const demo = topic.conceptDemo
+
   return (
     <article className="topic-module" id={topic.id}>
       <header className="topic-header">
@@ -676,11 +737,11 @@ function TopicModule({ topic, navigate, onOpenKnowledge }) {
           </ol>
         </section>
         <section className="knowledge-card demo-card">
-          <h4>Automation Chat Demo</h4>
-          <strong>{topic.demo.action}</strong>
-          <p>{topic.demo.text}</p>
-          <button type="button" onClick={() => navigate(topic.demo.consolePath)}>
-            <Play size={16} aria-hidden="true" /> Open linked demo
+          <h4>Concept demo</h4>
+          <strong>{demo.title}</strong>
+          <p>{demo.scenario}</p>
+          <button type="button" onClick={() => onOpenKnowledge(topic.id)}>
+            <Play size={16} aria-hidden="true" /> Open lab detail
           </button>
         </section>
       </div>
@@ -690,6 +751,31 @@ function TopicModule({ topic, navigate, onOpenKnowledge }) {
         <TopicList title="Project hooks" items={topic.demo.projectHooks} />
       </div>
     </article>
+  )
+}
+
+function SessionDetail({ session, onOpenConcept }) {
+  const topic = trainingTopics.find(item => item.id === session.topicId) || trainingTopics[0]
+
+  return (
+    <div className="session-detail">
+      <div className="session-detail-main">
+        <p className="eyebrow">{topic.label} session detail</p>
+        <h4>{session.number}. {session.title}</h4>
+        <p>{session.lesson}</p>
+      </div>
+      <div className="mini-list">
+        <span>Reading</span>
+        {session.reading.map(item => <code key={item}>{item}</code>)}
+      </div>
+      <div className="mini-list">
+        <span>Lab</span>
+        {session.lab.map(item => <code key={item}>{item}</code>)}
+      </div>
+      <button type="button" onClick={() => onOpenConcept(session.topicId, session.number)}>
+        <Play size={16} aria-hidden="true" /> Open concept lab
+      </button>
+    </div>
   )
 }
 

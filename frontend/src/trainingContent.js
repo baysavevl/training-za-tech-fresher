@@ -44,6 +44,18 @@ export const trainingTopics = [
         'Replay the same message ID and inspect History to confirm no duplicate rows.',
         'Discuss how this local lock would change in a multi-node deployment.'
       ]
+    },
+    conceptDemo: {
+      id: 'pc',
+      title: 'Concurrent delivery and duplicate replay lab',
+      scenario: 'A chat channel retries delivery while another message for the same conversation arrives. Freshers inspect why duplicate delivery is reused and why same-conversation session updates must be serialized.',
+      steps: [
+        'Run the full demo once to create a conversation and session.',
+        'Use Replay duplicate with the same message_id and compare the response with the original response.',
+        'Explain which fields protect the system: conversation_id lock, message_id idempotency key, and session version.'
+      ],
+      evidence: ['History row count stays stable', 'Duplicate response has duplicate=true', 'Session current_node_id is not advanced twice'],
+      mentorPrompt: 'Ask the fresher what would break if two app instances processed the same conversation without a shared lock or optimistic version check.'
     }
   },
   {
@@ -92,6 +104,18 @@ export const trainingTopics = [
         'Publish the workflow and inspect how workflow versioning protects runtime execution.',
         'Open the proto contract and discuss what changes are backward compatible.'
       ]
+    },
+    conceptDemo: {
+      id: 'rpc',
+      title: 'API contract and channel adapter lab',
+      scenario: 'A mock chat client sends a channel-specific payload. Freshers map that payload to the stable REST contract, then follow how the adapter converts it into the internal inbound message.',
+      steps: [
+        'Open the Automation Console and identify every field in the Mock chat panel.',
+        'Map each field to MockIncomingMessageRequest and the X-Request-Id header.',
+        'Compare the controller DTO with InboundChatMessage and explain what the adapter hides from the engine.'
+      ],
+      evidence: ['Request body maps one-to-one to DTO fields', 'Adapter output has a normalized inbound message', 'Controller response does not expose workflow internals'],
+      mentorPrompt: 'Ask which field can change when adding a second channel and which service contract must remain stable.'
     }
   },
   {
@@ -139,6 +163,18 @@ export const trainingTopics = [
         'Write a new unit test for an OPTION edge before changing the engine.',
         'Run mvn test and explain the cost difference between fast unit tests and full integration tests.'
       ]
+    },
+    conceptDemo: {
+      id: 'te',
+      title: 'Workflow validation and fallback regression lab',
+      scenario: 'A mentor intentionally breaks workflow JSON and asks freshers to predict whether validation, unit tests, or integration tests should catch the behavior.',
+      steps: [
+        'Remove one required edge from the sample workflow and publish it to trigger validation.',
+        'Restore the workflow and send a message that does not match the order keyword.',
+        'Locate the fallback response and name the test level that should protect that branch.'
+      ],
+      evidence: ['Publish returns a structured validation error', 'Fallback branch produces the expected bot response', 'WorkflowExecutionEngineTest covers routing without Spring'],
+      mentorPrompt: 'Ask the fresher to write the test name before changing any workflow engine code.'
     }
   },
   {
@@ -187,9 +223,72 @@ export const trainingTopics = [
         'Find the same request_id in response, trace rows, and service logs.',
         'Design one counter and one latency metric for ACTION node execution.'
       ]
+    },
+    conceptDemo: {
+      id: 'ob',
+      title: 'Message trace reconstruction lab',
+      scenario: 'A user reports a wrong response. Freshers reconstruct the path from request_id to history row, current session, execution trace, and structured service log.',
+      steps: [
+        'Run the full demo and copy the request_id, message_id, conversation_id, session_id, and node_id.',
+        'Open History, Session, and Debug Trace to connect persisted debug records.',
+        'Read the structured log line and explain which signal answers what happened, where, and why.'
+      ],
+      evidence: ['Trace row includes request_id and node_id', 'History shows user and bot messages', 'Service log can be searched by the same correlation identifiers'],
+      mentorPrompt: 'Ask which fields must be present in every log line before the team can debug a production incident quickly.'
     }
   }
 ]
+
+export const projectBrief = {
+  title: 'Conversation Automation System',
+  subtitle: 'A runnable Java backend and React console used to train freshers on backend engineering fundamentals.',
+  tabs: [
+    {
+      id: 'requirements',
+      label: 'Requirements',
+      items: [
+        'Build a Java backend with Mock Chat APIs for incoming messages and automated responses.',
+        'Manage automation configuration, workflow JSON drafts, publishable workflow versions, and enable or disable automation.',
+        'Execute START, MESSAGE, QUESTION, CONDITION, ACTION, HANDOFF, and END nodes through a session-based engine.',
+        'Protect concurrent processing with idempotency, per-conversation state safety, and clear error handling.',
+        'Expose history, current session, execution trace, structured logs, metrics outline, and debug APIs.'
+      ]
+    },
+    {
+      id: 'outputs',
+      label: 'Expected output',
+      items: [
+        'One source tree that packages the React UI into the Spring Boot application.',
+        'Automation Console for creating, publishing, sending messages, replaying duplicates, and inspecting debug data.',
+        'Database schema for automation config, workflow versions, sessions, message history, traces, and action execution.',
+        'Unit and integration tests for core workflow logic, idempotency, API flow, and UI content contracts.',
+        'README, architecture notes, API documentation, and a repeatable demo script for mentor-led sessions.'
+      ]
+    },
+    {
+      id: 'checklist',
+      label: 'Mentor checklist',
+      items: [
+        'Start every session from product behavior and API contract before reading implementation code.',
+        'Ask where mutable state lives, who owns updates, and how duplicate delivery behaves.',
+        'Require one behavior-focused test before changing workflow or concurrency logic.',
+        'Review debug evidence by request_id, message_id, conversation_id, session_id, and node_id.',
+        'Close each topic with a fresher explanation: what failed, where it failed, and how the design prevents it.'
+      ]
+    },
+    {
+      id: 'demo-script',
+      label: 'Demo script',
+      items: [
+        'Open the Project brief and state the product goal, expected output, and runtime architecture.',
+        'Use Run full demo to create automation, save workflow draft, publish it, send a message, and populate debug panels.',
+        'Open a concept lab and run the topic-specific exercise instead of treating all knowledge as one generic demo.',
+        'Open a roadmap session detail inline and connect the session lesson with code references and lab tasks.',
+        'Replay the duplicate message and use History plus Debug Trace to prove the system is idempotent.'
+      ]
+    }
+  ]
+}
 
 export const learningSessions = [
   {

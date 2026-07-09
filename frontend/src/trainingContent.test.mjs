@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { learningSessions, trainingTopics } from './trainingContent.js'
+import { learningSessions, projectBrief, trainingTopics } from './trainingContent.js'
 
 test('training topics provide complete English learning module content', () => {
   assert.equal(trainingTopics.length, 4)
@@ -18,7 +18,16 @@ test('training topics provide complete English learning module content', () => {
     assert.ok(topic.lecture.sections.length >= 3, `${topic.label} needs lecture sections`)
     assert.ok(topic.lecture.reading.length >= 3, `${topic.label} needs reading references`)
     assert.ok(topic.lecture.lab.length >= 3, `${topic.label} needs lab steps`)
+    assert.equal(topic.conceptDemo.id, topic.id, `${topic.label} demo should belong to that concept`)
+    assert.ok(topic.conceptDemo.title.length > 12, `${topic.label} needs a concept demo title`)
+    assert.ok(topic.conceptDemo.scenario.length > 60, `${topic.label} needs a demo scenario`)
+    assert.ok(topic.conceptDemo.steps.length >= 3, `${topic.label} needs concept demo steps`)
+    assert.ok(topic.conceptDemo.evidence.length >= 2, `${topic.label} needs demo evidence`)
+    assert.ok(topic.conceptDemo.mentorPrompt.length > 40, `${topic.label} needs mentor prompt`)
   }
+
+  const uniqueDemoTitles = new Set(trainingTopics.map(topic => topic.conceptDemo.title))
+  assert.equal(uniqueDemoTitles.size, trainingTopics.length, 'each concept should have its own demo')
 })
 
 test('learning sessions stay aligned with the 10-session mentoring format', () => {
@@ -29,4 +38,10 @@ test('learning sessions stay aligned with the 10-session mentoring format', () =
   assert.ok(learningSessions.every(session => session.lesson.length > 80), 'each session should have lecture notes')
   assert.ok(learningSessions.every(session => session.reading.length >= 2), 'each session should have reading items')
   assert.ok(learningSessions.every(session => session.lab.length >= 2), 'each session should have lab steps')
+})
+
+test('project brief exposes requirements, outputs, checklist, and demo script tabs', () => {
+  assert.equal(projectBrief.title, 'Conversation Automation System')
+  assert.deepEqual(projectBrief.tabs.map(tab => tab.id), ['requirements', 'outputs', 'checklist', 'demo-script'])
+  assert.ok(projectBrief.tabs.every(tab => tab.items.length >= 4), 'each project brief tab needs enough mentoring content')
 })
