@@ -40,8 +40,40 @@ test('learning sessions stay aligned with the 10-session mentoring format', () =
   assert.ok(learningSessions.every(session => session.lab.length >= 2), 'each session should have lab steps')
 })
 
-test('project brief exposes requirements, outputs, checklist, and demo script tabs', () => {
+test('project brief captures the complete project scope and checkpoints', () => {
   assert.equal(projectBrief.title, 'Conversation Automation System')
-  assert.deepEqual(projectBrief.tabs.map(tab => tab.id), ['requirements', 'outputs', 'checklist', 'demo-script'])
-  assert.ok(projectBrief.tabs.every(tab => tab.items.length >= 4), 'each project brief tab needs enough mentoring content')
+  assert.deepEqual(projectBrief.tabs.map(tab => tab.id), [
+    'description',
+    'requirements',
+    'expected-output',
+    'review-checkpoint',
+    'demo-checkpoint'
+  ])
+
+  const description = projectBrief.tabs.find(tab => tab.id === 'description')
+  assert.equal(description.groups.length, 6)
+  assert.ok(description.groups.some(group => group.title === 'Khởi tạo project & Mock Chat API'))
+  assert.ok(description.groups.some(group => group.title === 'Automation Execution Engine'))
+  assert.ok(description.groups.some(group => group.title === 'Nâng cao (Optional)'))
+  assert.ok(description.groups.every(group => group.items.length >= 3), 'each description group needs enough details')
+
+  const requirements = projectBrief.tabs.find(tab => tab.id === 'requirements')
+  assert.equal(requirements.items.length, 11)
+  assert.ok(requirements.items.some(item => item.includes('Client & Server')))
+  assert.ok(requirements.items.some(item => item.includes('idempotency')))
+  assert.ok(requirements.items.some(item => item.includes('Observability')))
+
+  const expectedOutput = projectBrief.tabs.find(tab => tab.id === 'expected-output')
+  assert.equal(expectedOutput.items.length, 12)
+  assert.ok(expectedOutput.items.some(item => item.includes('Docker Compose')))
+  assert.ok(expectedOutput.items.some(item => item.includes('OpenAPI/Swagger')))
+  assert.ok(expectedOutput.items.some(item => item.includes('README, architecture document')))
+
+  const reviewCheckpoint = projectBrief.tabs.find(tab => tab.id === 'review-checkpoint')
+  assert.ok(reviewCheckpoint.items.length >= 12)
+  assert.ok(reviewCheckpoint.items.some(item => item.includes('workflow validation')))
+
+  const demoCheckpoint = projectBrief.tabs.find(tab => tab.id === 'demo-checkpoint')
+  assert.ok(demoCheckpoint.items.length >= 8)
+  assert.ok(demoCheckpoint.items.some(item => item.includes('Replay duplicate')))
 })

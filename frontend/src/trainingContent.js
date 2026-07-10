@@ -244,47 +244,142 @@ export const projectBrief = {
   subtitle: 'A runnable Java backend and React console used to train freshers on backend engineering fundamentals.',
   tabs: [
     {
+      id: 'description',
+      label: 'Description',
+      summary: 'Project scope used to double check what the backend, automation engine, and training console must demonstrate.',
+      groups: [
+        {
+          title: 'Khởi tạo project & Mock Chat API',
+          items: [
+            'Dựng ứng dụng backend Java có thể chạy local.',
+            'Xây dựng Mock Chat Service để giả lập user gửi message và nhận automated response.',
+            'Viết API cơ bản cho conversation, message history và incoming message.'
+          ]
+        },
+        {
+          title: 'Automation Configuration & Workflow Management',
+          items: [
+            'Xây dựng API quản lý Automation và Workflow.',
+            'Cho phép tạo, cập nhật, enable/disable automation.',
+            'Cho phép tạo workflow bằng JSON và publish workflow version.',
+            'Workflow hỗ trợ node START, MESSAGE, QUESTION, CONDITION, ACTION, HANDOFF, END.',
+            'Validate workflow trước khi publish để tránh flow sai cấu trúc.'
+          ]
+        },
+        {
+          title: 'Automation Execution Engine',
+          items: [
+            'Xử lý message từ Mock Chat bằng workflow active và session hiện tại.',
+            'Load session, xử lý node tương ứng, chọn next node, cập nhật session và trả response.',
+            'Hỗ trợ option, keyword, condition và fallback khi input không hợp lệ.',
+            'Lưu conversation history và execution trace để debug.'
+          ]
+        },
+        {
+          title: 'Session, Concurrency & Reliability',
+          items: [
+            'Quản lý trạng thái hội thoại theo từng user/conversation.',
+            'Xử lý nhiều conversation chạy song song.',
+            'Xử lý duplicate message bằng message_id/idempotency.',
+            'Đảm bảo session không bị update sai khi nhiều message đến gần nhau.',
+            'Xử lý lỗi rõ ràng khi workflow, session hoặc action bị lỗi.'
+          ]
+        },
+        {
+          title: 'Action, Adapter & Observability',
+          items: [
+            'Thiết kế Channel Adapter để tách logic chat khỏi automation engine.',
+            'Xây dựng ACTION node gọi mock external service như order lookup, ticket creation hoặc webhook.',
+            'Ghi structured log với request_id, message_id, conversation_id, session_id, node_id.',
+            'Cung cấp API xem conversation history, current session và execution trace.'
+          ]
+        },
+        {
+          title: 'Nâng cao (Optional)',
+          items: [
+            'Xử lý ACTION node bất đồng bộ bằng queue/worker.',
+            'Retry/backoff khi action hoặc webhook thất bại.',
+            'Dead-letter/failed task storage.',
+            'Session cleanup job cho session hết hạn.',
+            'Rate limit theo user/conversation/automation.',
+            'Workflow validation nâng cao: unreachable node, circular flow, missing config.',
+            'Web UI đơn giản để gửi message, tạo workflow và xem debug trace.',
+            'Metrics endpoint hoặc dashboard đơn giản.'
+          ]
+        }
+      ]
+    },
+    {
       id: 'requirements',
       label: 'Requirements',
+      summary: 'Knowledge requirements freshers must explain after building and demoing the project.',
       items: [
-        'Build a Java backend with Mock Chat APIs for incoming messages and automated responses.',
-        'Manage automation configuration, workflow JSON drafts, publishable workflow versions, and enable or disable automation.',
-        'Execute START, MESSAGE, QUESTION, CONDITION, ACTION, HANDOFF, and END nodes through a session-based engine.',
-        'Protect concurrent processing with idempotency, per-conversation state safety, and clear error handling.',
-        'Expose history, current session, execution trace, structured logs, metrics outline, and debug APIs.'
+        'Hiểu mô hình Client & Server và thiết kế API contract giữa Mock Chat, Channel Adapter và Automation Service.',
+        'Hiểu RESTful API, request/response model, validation, error handling và API documentation.',
+        'Hiểu cách mô hình hóa workflow bằng JSON, node, edge, condition và action.',
+        'Hiểu state machine và session management trong bài toán hội thoại nhiều bước.',
+        'Biết thiết kế database schema cho automation config, workflow version, session, message history, execution trace và action execution.',
+        'Hiểu Parallelism & Concurrency: nhiều user gửi message đồng thời, duplicate message, race condition và concurrent update session.',
+        'Biết áp dụng idempotency, transaction/locking hoặc cơ chế tương đương để đảm bảo xử lý message và session state an toàn.',
+        'Hiểu reliability cơ bản: retry, fallback handling, failed task và error handling.',
+        'Biết thiết kế Channel Adapter để dễ mở rộng sang channel khác.',
+        'Nắm được Observability cơ bản: structured log, correlation ID, execution trace, metrics outline và debug API.',
+        'Có khả năng viết unit test, integration test, README, setup guide và tài liệu kiến trúc.'
       ]
     },
     {
-      id: 'outputs',
+      id: 'expected-output',
       label: 'Expected output',
+      summary: 'Concrete deliverables that must exist in the repository and local demo before the mentoring program is considered complete.',
       items: [
-        'One source tree that packages the React UI into the Spring Boot application.',
-        'Automation Console for creating, publishing, sending messages, replaying duplicates, and inspecting debug data.',
-        'Database schema for automation config, workflow versions, sessions, message history, traces, and action execution.',
-        'Unit and integration tests for core workflow logic, idempotency, API flow, and UI content contracts.',
-        'README, architecture notes, API documentation, and a repeatable demo script for mentor-led sessions.'
+        'Source code backend chạy được local bằng Docker Compose hoặc setup guide rõ ràng.',
+        'Có Mock Chat Service để demo user gửi message và nhận response.',
+        'Có API quản lý automation, workflow và publish workflow version.',
+        'Có API nhận incoming message và xử lý automation flow.',
+        'Có database schema cho automation, workflow, session, message history, execution trace và action execution.',
+        'Có idempotency để tránh xử lý trùng message.',
+        'Có xử lý fallback khi user input không match rule.',
+        'Có cơ chế hạn chế race condition khi update session.',
+        'Có structured log và API xem conversation history/execution trace.',
+        'Có OpenAPI/Swagger hoặc tài liệu API tương đương.',
+        'Có unit test cho core logic và integration test cho flow chính.',
+        'Có README, architecture document và demo script.'
       ]
     },
     {
-      id: 'checklist',
-      label: 'Mentor checklist',
+      id: 'review-checkpoint',
+      label: 'Review checkpoint',
+      summary: 'Lead engineer review prompts used to verify design quality, code quality, and training coverage.',
       items: [
-        'Start every session from product behavior and API contract before reading implementation code.',
-        'Ask where mutable state lives, who owns updates, and how duplicate delivery behaves.',
-        'Require one behavior-focused test before changing workflow or concurrency logic.',
-        'Review debug evidence by request_id, message_id, conversation_id, session_id, and node_id.',
-        'Close each topic with a fresher explanation: what failed, where it failed, and how the design prevents it.'
+        'Product behavior is clear before code review: who sends a message, what response is expected, and which failure path is acceptable.',
+        'REST API contract is documented with request body, response body, validation error, and correlation header.',
+        'Workflow JSON has a clear graph model: nodes, edges, condition rules, fallback edge, and terminal node.',
+        'Publish flow performs workflow validation before runtime activation.',
+        'State machine execution is deterministic, testable, and separated from persistence side effects.',
+        'Session ownership is explicit: which table stores current node, who updates it, and how version/concurrency is protected.',
+        'Idempotency behavior is reviewable: same message_id returns the same result and does not duplicate history.',
+        'Concurrent messages in the same conversation are serialized or guarded by equivalent locking/transaction logic.',
+        'ACTION adapter failure path has timeout, error mapping, trace record, and retry/backoff design notes.',
+        'Observability fields are present in logs and trace: request_id, message_id, conversation_id, session_id, node_id.',
+        'Tests cover workflow validation, engine routing, fallback behavior, duplicate message replay, and main API flow.',
+        'Docs explain setup, database design, API contract, architecture, demo script, and known optional extensions.'
       ]
     },
     {
-      id: 'demo-script',
-      label: 'Demo script',
+      id: 'demo-checkpoint',
+      label: 'Demo checkpoint',
+      summary: 'Step-by-step demo flow for validating that the runnable product proves the required backend concepts.',
       items: [
-        'Open the Project brief and state the product goal, expected output, and runtime architecture.',
-        'Use Run full demo to create automation, save workflow draft, publish it, send a message, and populate debug panels.',
-        'Open a concept lab and run the topic-specific exercise instead of treating all knowledge as one generic demo.',
-        'Open a roadmap session detail inline and connect the session lesson with code references and lab tasks.',
-        'Replay the duplicate message and use History plus Debug Trace to prove the system is idempotent.'
+        'Open Project brief and compare Description, Requirements, Expected output, Review checkpoint, and Demo checkpoint.',
+        'Open Automation Console and create a new automation from the UI.',
+        'Load sample workflow JSON, save workflow draft, then publish workflow version successfully.',
+        'Send an order lookup message through Mock Chat and verify automated response.',
+        'Open History and confirm both user message and bot response are persisted.',
+        'Open Session and Debug Trace to follow current_node_id, node_id, request_id, and action execution evidence.',
+        'Replay duplicate message_id and verify the same response is reused without duplicate history rows.',
+        'Open at least one Concept Lab and run its topic-specific demo instead of using one generic project demo.',
+        'Open Source Viewer for one Markdown document and one SQL or Java reference from the roadmap detail.',
+        'Use the checklist to confirm output coverage before ending the fresher review.'
       ]
     }
   ]

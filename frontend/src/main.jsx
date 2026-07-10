@@ -637,6 +637,13 @@ function TrainingPortal({ navigate }) {
 
 function ProjectBrief({ activeTabId, onChangeTab }) {
   const activeTab = projectBrief.tabs.find(tab => tab.id === activeTabId) || projectBrief.tabs[0]
+  const hasGroups = Array.isArray(activeTab.groups)
+  const itemCount = hasGroups
+    ? activeTab.groups.reduce((total, group) => total + group.items.length, 0)
+    : activeTab.items.length
+  const countLabel = hasGroups
+    ? `${activeTab.groups.length} sections / ${itemCount} items`
+    : `${itemCount} checkpoints`
 
   return (
     <section className="project-brief" id="project-brief">
@@ -651,6 +658,8 @@ function ProjectBrief({ activeTabId, onChangeTab }) {
             <button
               type="button"
               className={tab.id === activeTab.id ? 'active' : ''}
+              role="tab"
+              aria-selected={tab.id === activeTab.id}
               onClick={() => onChangeTab(tab.id)}
               key={tab.id}
             >
@@ -660,11 +669,37 @@ function ProjectBrief({ activeTabId, onChangeTab }) {
         </div>
       </div>
 
-      <div className="brief-panel">
-        <h4>{activeTab.label}</h4>
-        <ol>
-          {activeTab.items.map(item => <li key={item}>{item}</li>)}
-        </ol>
+      <div className={`brief-panel brief-panel-${activeTab.id}`}>
+        <div className="brief-panel-header">
+          <div>
+            <p className="eyebrow">Project check</p>
+            <h4>{activeTab.label}</h4>
+            <p>{activeTab.summary}</p>
+          </div>
+          <span>{countLabel}</span>
+        </div>
+
+        {hasGroups ? (
+          <div className="brief-group-grid">
+            {activeTab.groups.map(group => (
+              <article className="brief-group" key={group.title}>
+                <h5>{group.title}</h5>
+                <ul>
+                  {group.items.map(item => <li key={item}>{item}</li>)}
+                </ul>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <ol className="brief-checklist">
+            {activeTab.items.map((item, index) => (
+              <li key={item}>
+                <span className="brief-check-index">{String(index + 1).padStart(2, '0')}</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </section>
   )
