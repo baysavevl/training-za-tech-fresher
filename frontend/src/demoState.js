@@ -31,6 +31,15 @@ export const initialDemoState = {
   workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2)
 }
 
+export function createAutoDemoMessageFields(seed = Date.now()) {
+  const suffix = Number(seed).toString(36)
+  return {
+    conversationId: '',
+    messageId: `msg-auto-${suffix}`,
+    requestId: `request-auto-${suffix}`
+  }
+}
+
 export function hydrateDemoState(rawValue) {
   if (!rawValue) {
     return initialDemoState

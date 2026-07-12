@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
+import {
+  DEMO_STATE_VERSION,
+  SAMPLE_WORKFLOW,
+  createAutoDemoMessageFields,
+  hydrateDemoState,
+  initialDemoState
+} from './demoState.js'
 
 test('hydrateDemoState resets stale local state from older UI versions', () => {
   const stale = {
@@ -40,4 +46,12 @@ test('sample workflow gives every non-end node an outgoing edge', () => {
     .map((node) => node.id)
 
   assert.deepEqual(missingOutgoing, [])
+})
+
+test('auto demo message fields start a fresh non-duplicate conversation', () => {
+  assert.deepEqual(createAutoDemoMessageFields(123456), {
+    conversationId: '',
+    messageId: 'msg-auto-2n9c',
+    requestId: 'request-auto-2n9c'
+  })
 })

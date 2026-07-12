@@ -17,7 +17,13 @@ import {
   X
 } from 'lucide-react'
 import { withJsonHeaders } from './apiClient.js'
-import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
+import {
+  DEMO_STATE_VERSION,
+  SAMPLE_WORKFLOW,
+  createAutoDemoMessageFields,
+  hydrateDemoState,
+  initialDemoState
+} from './demoState.js'
 import {
   knowledgeSelectionForTopic,
   sessionDetailPath,
@@ -174,8 +180,9 @@ function Dashboard({ navigate }) {
   }
 
   async function quickSetup(sendAfterPublish = false) {
-    const result = await run(sendAfterPublish ? 'Sample workflow published and message sent' : 'Sample workflow published', async () => {
+    const result = await run(sendAfterPublish ? 'Auto demo completed' : 'Sample workflow published', async () => {
       const definition = JSON.parse(state.workflowJson)
+      const autoMessageFields = sendAfterPublish ? createAutoDemoMessageFields() : null
       const automation = state.automationId
         ? { id: state.automationId }
         : await request('/api/automations', {
@@ -194,22 +201,23 @@ function Dashboard({ navigate }) {
       }
       const message = await request('/api/mock-chat/messages', {
         method: 'POST',
-        headers: { 'X-Request-Id': state.requestId },
+        headers: { 'X-Request-Id': autoMessageFields.requestId },
         body: JSON.stringify({
           userId: state.userId,
-          conversationId: state.conversationId || null,
-          messageId: state.messageId,
+          conversationId: null,
+          messageId: autoMessageFields.messageId,
           automationId: automation.id,
           text: state.text
         })
       })
-      return { automation, workflow, published, message }
+      return { automation, workflow, published, message, autoMessageFields }
     })
 
     if (result) {
       patch({
         automationId: result.automation.id,
         workflowVersionId: result.workflow.id,
+        ...(result.autoMessageFields || {}),
         conversationId: result.message?.conversationId || state.conversationId
       })
       setLastResponse(result.message || result.published)
@@ -289,30 +297,32 @@ function Dashboard({ navigate }) {
         </header>
 
         <section className="run-card">
-          <div>
+          <div className="run-summary">
             <p className="eyebrow">Guided demo</p>
-            <h3>Create, publish, then send without guessing button order.</h3>
+            <h3>Auto demo runs the full product flow.</h3>
             <p>
-              Use quick setup when mentoring live. It creates the automation, saves the sample
-              workflow draft, publishes it, and can optionally send the first chat message.
+              Click Run auto demo once. It creates the automation, saves and publishes the sample
+              workflow, sends a fresh message, and refreshes debug panels. Manual controls below
+              are only for teaching each API call separately.
             </p>
           </div>
           <div className="run-actions">
             <button type="button" onClick={() => quickSetup(false)} disabled={busy}>
-              <CheckCircle2 size={16} aria-hidden="true" /> Set up + publish
+              <CheckCircle2 size={16} aria-hidden="true" /> Prepare only
             </button>
             <button type="button" className="primary" onClick={() => quickSetup(true)} disabled={busy}>
-              <Send size={16} aria-hidden="true" /> Run full demo
+              <Send size={16} aria-hidden="true" /> Run auto demo
             </button>
           </div>
+          <DemoProgress idsReady={idsReady} debugReady={history.length > 0 || trace.length > 0} />
         </section>
 
         <div className="grid">
           <section className="panel setup-panel">
             <PanelTitle icon={<Database size={18} />} title="Workflow setup" />
             <div className="step-help">
-              <strong>Manual order</strong>
-              <span>Create automation, save draft, publish, then send message.</span>
+              <strong>Manual controls (optional)</strong>
+              <span>Use these buttons when teaching the REST calls one by one. For live demo, use Run auto demo above.</span>
             </div>
             <div className="field-row">
               <label>
@@ -342,7 +352,7 @@ function Dashboard({ navigate }) {
             </div>
             <p className="button-note">
               {!idsReady.automation
-                ? 'Save draft is locked until an automation exists. Use Create or Set up + publish.'
+                ? 'Save draft is locked until an automation exists. Use Create or Prepare only.'
                 : !idsReady.workflow
                   ? 'Publish is locked until the workflow draft is saved.'
                   : 'Workflow draft is ready to publish.'}
@@ -370,7 +380,7 @@ function Dashboard({ navigate }) {
               <textarea className="message-box" value={state.text} onChange={event => patch({ text: event.target.value })} />
             </label>
             <div className="button-row">
-              <button type="button" className="primary" onClick={() => sendMessage(false)} disabled={!idsReady.automation || busy}>
+              <button type="button" className="primary" onClick={() => sendMessage(false)} disabled={!idsReady.automation || !idsReady.workflow || busy}>
                 <Send size={16} aria-hidden="true" /> Send
               </button>
               <button type="button" onClick={() => sendMessage(true)} disabled={!idsReady.conversation || busy}>
@@ -379,10 +389,10 @@ function Dashboard({ navigate }) {
             </div>
             <p className="button-note">
               {!idsReady.automation
-                ? 'Send is locked until an automation exists. Use Run full demo for the fastest path.'
+                ? 'Send is locked until an automation exists. Use Run auto demo for the fastest path.'
                 : !idsReady.workflow
                   ? 'Publish the workflow before sending a message.'
-                  : 'Send is ready. Replay duplicate unlocks after the first conversation exists.'}
+                  : 'Manual send is ready. Run auto demo always starts a fresh conversation with a fresh message ID.'}
             </p>
             <JsonBlock title="Last response" data={lastResponse} />
           </section>
@@ -400,6 +410,45 @@ function Dashboard({ navigate }) {
         </div>
       </section>
     </main>
+  )
+}
+
+function DemoProgress({ idsReady, debugReady }) {
+  const steps = [
+    {
+      label: 'Automation',
+      detail: idsReady.automation ? 'Ready' : 'Auto creates it',
+      active: idsReady.automation
+    },
+    {
+      label: 'Workflow',
+      detail: idsReady.workflow ? 'Published version ready' : 'Auto saves and publishes',
+      active: idsReady.workflow
+    },
+    {
+      label: 'Message',
+      detail: idsReady.conversation ? 'Fresh conversation exists' : 'Auto sends a fresh message',
+      active: idsReady.conversation
+    },
+    {
+      label: 'Debug',
+      detail: debugReady ? 'History and trace loaded' : 'Auto refreshes after send',
+      active: debugReady
+    }
+  ]
+
+  return (
+    <div className="demo-progress" aria-label="Auto demo progress">
+      {steps.map(step => (
+        <div className={`demo-step ${step.active ? 'done' : ''}`} key={step.label}>
+          <CheckCircle2 size={16} aria-hidden="true" />
+          <div>
+            <strong>{step.label}</strong>
+            <span>{step.detail}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
