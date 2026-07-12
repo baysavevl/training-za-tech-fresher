@@ -37,6 +37,15 @@ class TrainingSourceControllerTest {
     }
 
     @Test
+    void readsWhitelistedApplicationYamlSource() throws Exception {
+        mockMvc.perform(get("/api/training/sources").param("path", "conversation-app/src/main/resources/application.yml"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.path").value("conversation-app/src/main/resources/application.yml"))
+                .andExpect(jsonPath("$.language").value("yaml"))
+                .andExpect(jsonPath("$.content", containsString("metrics")));
+    }
+
+    @Test
     void rejectsPathTraversal() throws Exception {
         mockMvc.perform(get("/api/training/sources").param("path", "../pom.xml"))
                 .andExpect(status().isBadRequest())

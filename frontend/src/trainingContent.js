@@ -254,6 +254,23 @@ export const projectBrief = {
             'Dựng ứng dụng backend Java có thể chạy local.',
             'Xây dựng Mock Chat Service để giả lập user gửi message và nhận automated response.',
             'Viết API cơ bản cho conversation, message history và incoming message.'
+          ],
+          coverage: [
+            {
+              label: 'Mock Chat REST boundary',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Incoming message orchestration',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Conversation history API',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/api/ConversationController.java',
+              status: 'implemented'
+            }
           ]
         },
         {
@@ -264,6 +281,23 @@ export const projectBrief = {
             'Cho phép tạo workflow bằng JSON và publish workflow version.',
             'Workflow hỗ trợ node START, MESSAGE, QUESTION, CONDITION, ACTION, HANDOFF, END.',
             'Validate workflow trước khi publish để tránh flow sai cấu trúc.'
+          ],
+          coverage: [
+            {
+              label: 'Automation and workflow APIs',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/api/AutomationController.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Workflow publish service',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/application/AutomationService.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Workflow graph validation',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowValidator.java',
+              status: 'implemented'
+            }
           ]
         },
         {
@@ -273,6 +307,23 @@ export const projectBrief = {
             'Load session, xử lý node tương ứng, chọn next node, cập nhật session và trả response.',
             'Hỗ trợ option, keyword, condition và fallback khi input không hợp lệ.',
             'Lưu conversation history và execution trace để debug.'
+          ],
+          coverage: [
+            {
+              label: 'Stateless workflow engine',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngine.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Session/message/trace orchestration',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Workflow routing tests',
+              source: 'conversation-app/src/test/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngineTest.java',
+              status: 'implemented'
+            }
           ]
         },
         {
@@ -283,6 +334,23 @@ export const projectBrief = {
             'Xử lý duplicate message bằng message_id/idempotency.',
             'Đảm bảo session không bị update sai khi nhiều message đến gần nhau.',
             'Xử lý lỗi rõ ràng khi workflow, session hoặc action bị lỗi.'
+          ],
+          coverage: [
+            {
+              label: 'Per-conversation lock',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/ConversationLockManager.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Session and idempotency schema',
+              source: 'conversation-app/src/main/resources/schema.sql',
+              status: 'implemented'
+            },
+            {
+              label: 'Duplicate message test',
+              source: 'conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java',
+              status: 'implemented'
+            }
           ]
         },
         {
@@ -292,6 +360,28 @@ export const projectBrief = {
             'Xây dựng ACTION node gọi mock external service như order lookup, ticket creation hoặc webhook.',
             'Ghi structured log với request_id, message_id, conversation_id, session_id, node_id.',
             'Cung cấp API xem conversation history, current session và execution trace.'
+          ],
+          coverage: [
+            {
+              label: 'Channel adapter contract',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/ChannelAdapter.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Action adapter contract',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/ActionAdapter.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Mock external action implementation',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Trace/log/debug APIs',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java',
+              status: 'implemented'
+            }
           ]
         },
         {
@@ -305,6 +395,23 @@ export const projectBrief = {
             'Workflow validation nâng cao: unreachable node, circular flow, missing config.',
             'Web UI đơn giản để gửi message, tạo workflow và xem debug trace.',
             'Metrics endpoint hoặc dashboard đơn giản.'
+          ],
+          coverage: [
+            {
+              label: 'Optional reliability extension plan',
+              source: 'docs/design/architecture.md',
+              status: 'optional-design'
+            },
+            {
+              label: 'Training extension exercises',
+              source: 'docs/training/knowledge-program.md',
+              status: 'optional-design'
+            },
+            {
+              label: 'Metrics endpoint hook',
+              source: 'conversation-app/src/main/resources/application.yml',
+              status: 'implemented'
+            }
           ]
         }
       ]
@@ -394,7 +501,38 @@ export const learningSessions = [
     demo: 'Create a customer conversation from the console and map every UI field to the REST API contract.',
     lesson: 'Start from the product behavior, define client responsibility, service responsibility, request body, response body, validation rule, and failure contract before reading the implementation.',
     reading: ['docs/api/api-contract.md', 'MockChatController and AutomationController'],
-    lab: ['Create an automation from the console.', 'Map each form field to a REST request field.']
+    lab: ['Create an automation from the console.', 'Map each form field to a REST request field.'],
+    appliedExample: {
+      problem: 'A chat client must send an inbound message without knowing workflow tables, node types, or persistence rules.',
+      projectApplication: 'The React console and Mock Chat API send userId, conversationId, messageId, automationId, and text. The backend owns validation, request_id creation, and response shape.',
+      mentorExplanation: 'Explain that the client owns user intent and request data, while the service owns workflow execution and state. This boundary prevents UI changes from leaking into the engine.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'docs/api/api-contract.md',
+        symbol: 'POST /api/mock-chat/messages',
+        snippet: 'Request: userId, conversationId, messageId, automationId, text',
+        responsibility: 'Documents the external request and response shape before implementation details are discussed.',
+        why: 'Freshers learn to review API contract first so controller, UI, and tests share one source of truth.',
+        explain: 'Ask the fresher to map every UI field to this contract and identify which fields are optional versus required.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java',
+        symbol: 'incoming(...)',
+        snippet: '@PostMapping("/messages") -> mockChatService.handleIncoming(...)',
+        responsibility: 'Receives Mock Chat input, creates an effective request id, delegates channel normalization, and returns a stable response DTO.',
+        why: 'The controller stays thin so business rules remain in services and can be tested outside HTTP.',
+        explain: 'Point out request validation annotations and the generated request id as the first reliability boundary.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatChannelAdapter.java',
+        symbol: 'toInbound(...)',
+        snippet: 'new InboundChatMessage(request.userId(), ..., requestId)',
+        responsibility: 'Converts a channel-specific REST request into the internal inbound message consumed by the service.',
+        why: 'This adapter lets the system add another channel without changing workflow execution code.',
+        explain: 'Ask which fields would differ for a Zalo webhook and which normalized fields the engine still needs.'
+      }
+    ]
   },
   {
     number: '02',
@@ -404,7 +542,38 @@ export const learningSessions = [
     demo: 'Walk through config tables, runtime state tables, message history, trace rows, and the idempotency key.',
     lesson: 'Separate tables by lifecycle: automation configuration changes slowly, workflow versions are immutable once published, sessions change per message, and traces are append-only debug evidence.',
     reading: ['docs/design/database.md', 'conversation-app/src/main/resources/schema.sql'],
-    lab: ['Draw the schema groups on a whiteboard.', 'Explain which indexes protect common debug queries.']
+    lab: ['Draw the schema groups on a whiteboard.', 'Explain which indexes protect common debug queries.'],
+    appliedExample: {
+      problem: 'Conversation automation mixes slow-changing config, mutable runtime state, message history, and debug evidence.',
+      projectApplication: 'The schema separates automations/workflow_versions from conversation_sessions, messages, execution_traces, action_executions, and message_idempotency.',
+      mentorExplanation: 'Use lifecycle as the teaching frame: config is versioned, sessions mutate, messages and traces are evidence, and idempotency protects retries.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/resources/schema.sql',
+        symbol: 'workflow_versions',
+        snippet: 'UNIQUE (automation_id, version)',
+        responsibility: 'Stores immutable workflow definitions with a version number per automation.',
+        why: 'Published runtime behavior must not change when someone edits a later draft.',
+        explain: 'Ask the fresher why active_workflow_version_id points to a specific version instead of raw JSON on automation.'
+      },
+      {
+        source: 'conversation-app/src/main/resources/schema.sql',
+        symbol: 'conversation_sessions',
+        snippet: 'current_node_id VARCHAR(128) NOT NULL, version INTEGER NOT NULL',
+        responsibility: 'Stores the mutable state machine position for one conversation.',
+        why: 'The session row is the consistency boundary for multi-step chat behavior.',
+        explain: 'Show how current_node_id moves after each message and how version can support optimistic locking.'
+      },
+      {
+        source: 'conversation-app/src/main/resources/schema.sql',
+        symbol: 'message_idempotency',
+        snippet: 'PRIMARY KEY (conversation_id, external_message_id)',
+        responsibility: 'Prevents duplicate channel deliveries from producing duplicate message rows or session updates.',
+        why: 'Retries are normal in distributed systems, so the database must encode duplicate detection.',
+        explain: 'Ask the fresher to name the producer-side key and why conversation_id belongs in the primary key.'
+      }
+    ]
   },
   {
     number: '03',
@@ -414,7 +583,38 @@ export const learningSessions = [
     demo: 'Edit the sample workflow, break a validation rule, then publish a corrected version.',
     lesson: 'Treat workflow JSON as a graph contract. Validation should reject missing START nodes, invalid edge targets, missing node config, and unsafe runtime paths before publish.',
     reading: ['WorkflowValidator.java', 'WorkflowDefinition.java'],
-    lab: ['Remove the START edge and observe publish failure.', 'Add a validation test before changing validator logic.']
+    lab: ['Remove the START edge and observe publish failure.', 'Add a validation test before changing validator logic.'],
+    appliedExample: {
+      problem: 'A malformed workflow should fail at publish time, not during a customer conversation.',
+      projectApplication: 'AutomationService calls WorkflowValidator before publishing and only then updates active_workflow_version_id.',
+      mentorExplanation: 'Explain publish as a safety gate: runtime loads only a validated version, so bad drafts do not break active conversations.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowValidator.java',
+        symbol: 'validate(...)',
+        snippet: 'workflow must contain exactly one START node',
+        responsibility: 'Checks structural rules such as START count, unique node ids, valid edge endpoints, and required config.',
+        why: 'Graph mistakes are cheaper to catch before publishing than during message execution.',
+        explain: 'Walk through one invalid workflow and ask which validation error should appear before the code is opened.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/application/AutomationService.java',
+        symbol: 'publishWorkflowVersion(...)',
+        snippet: 'WorkflowValidationResult validation = workflowValidator.validate(...)',
+        responsibility: 'Validates the draft, marks the workflow version as PUBLISHED, and points the automation to that version.',
+        why: 'Publish creates an intentional boundary between editing configuration and affecting runtime users.',
+        explain: 'Ask why active_workflow_version_id is updated only after validation passes.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowDefinition.java',
+        symbol: 'Node / Edge records',
+        snippet: 'record Node(String id, WorkflowNodeType type, Map<String, Object> config)',
+        responsibility: 'Models workflow JSON as typed nodes and edges that the validator and engine can reason about.',
+        why: 'A graph model is easier to validate and test than ad hoc nested JSON traversal.',
+        explain: 'Have the fresher draw one JSON node and one edge, then map them to these records.'
+      }
+    ]
   },
   {
     number: '04',
@@ -424,7 +624,38 @@ export const learningSessions = [
     demo: 'Trace START to QUESTION to ACTION to END while watching current_node_id move.',
     lesson: 'A conversation workflow is a state machine. The engine should be deterministic, stateless, and testable while the service layer owns persistence and side effects.',
     reading: ['WorkflowExecutionEngine.java', 'WorkflowExecutionEngineTest.java'],
-    lab: ['Send a matching order message.', 'Explain why the session ends at the END node.']
+    lab: ['Send a matching order message.', 'Explain why the session ends at the END node.'],
+    appliedExample: {
+      problem: 'A multi-step conversation needs a deterministic next-node decision for each user input.',
+      projectApplication: 'WorkflowExecutionEngine receives workflow, currentNodeId, input, and ActionAdapter, then returns WorkflowExecutionOutcome without touching HTTP or database.',
+      mentorExplanation: 'Teach the engine as pure state-machine logic. Persistence and side effects stay in MockChatService so the engine remains unit-testable.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngine.java',
+        symbol: 'execute(...)',
+        snippet: 'execute(workflow, session.currentNodeId(), inbound.text(), actionAdapter)',
+        responsibility: 'Routes the current message through START, QUESTION, CONDITION, ACTION, HANDOFF, or END behavior.',
+        why: 'A stateless engine can be tested with plain objects and reused regardless of storage implementation.',
+        explain: 'Ask the fresher where the current state comes from and why the engine should not load it itself.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngine.java',
+        symbol: 'nextNode(...)',
+        snippet: 'sorted(... FALLBACK ? 1 : 0).filter(edge -> matches(edge, input))',
+        responsibility: 'Chooses the first matching non-fallback edge and uses fallback only after specific matches fail.',
+        why: 'Fallback must be deterministic or invalid input can take a surprising path.',
+        explain: 'Send an unmatched message and ask why fallback is evaluated after keyword and option edges.'
+      },
+      {
+        source: 'conversation-app/src/test/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngineTest.java',
+        symbol: 'engine routing tests',
+        snippet: 'assertThat(outcome.nodeId()).isEqualTo("end")',
+        responsibility: 'Locks down state-machine routing behavior without Spring, a database, or HTTP.',
+        why: 'Core behavior should be cheap to verify before integration tests run.',
+        explain: 'Ask the fresher to add one OPTION test before changing the engine.'
+      }
+    ]
   },
   {
     number: '05',
@@ -434,7 +665,38 @@ export const learningSessions = [
     demo: 'Compare incoming channel payload with the internal inbound message consumed by the service.',
     lesson: 'Adapters isolate external channel details from business logic. This lets the engine stay stable when the system later adds Zalo, web chat, webhook, or another channel.',
     reading: ['ChannelAdapter.java', 'MockChatChannelAdapter.java'],
-    lab: ['Compare API request DTO with InboundChatMessage.', 'Design fields needed for a second chat channel.']
+    lab: ['Compare API request DTO with InboundChatMessage.', 'Design fields needed for a second chat channel.'],
+    appliedExample: {
+      problem: 'Every channel has a different payload shape, but the automation engine needs one stable input model.',
+      projectApplication: 'MockChatChannelAdapter converts MockIncomingMessageRequest into InboundChatMessage before MockChatService starts orchestration.',
+      mentorExplanation: 'Explain adapter as an anti-corruption layer: channel-specific fields stop at the boundary and domain services process normalized input.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/ChannelAdapter.java',
+        symbol: 'ChannelAdapter<T>',
+        snippet: 'InboundChatMessage toInbound(T request, String requestId)',
+        responsibility: 'Defines the contract that every chat channel adapter must satisfy.',
+        why: 'The service can depend on a normalized inbound message rather than every possible external payload.',
+        explain: 'Ask what method a future Zalo webhook adapter would implement and what it should return.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatChannelAdapter.java',
+        symbol: 'toInbound(...)',
+        snippet: 'request.messageId(), request.automationId(), request.text(), requestId',
+        responsibility: 'Maps the mock channel DTO into the internal message record with correlation metadata.',
+        why: 'Keeping the mapping visible makes channel boundary discussions concrete for freshers.',
+        explain: 'Have the fresher compare each constructor argument with the REST request fields.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+        symbol: 'handleIncoming(...)',
+        snippet: 'handleIncoming(InboundChatMessage inbound)',
+        responsibility: 'Consumes only the normalized inbound message and remains independent of controller DTOs.',
+        why: 'This proves the adapter is doing real boundary work, not just adding another class.',
+        explain: 'Ask why MockChatService should not accept MockIncomingMessageRequest directly.'
+      }
+    ]
   },
   {
     number: '06',
@@ -444,7 +706,38 @@ export const learningSessions = [
     demo: 'Replay the same message ID and verify that the response is reused without duplicate history rows.',
     lesson: 'Distributed producers retry. A backend should treat duplicate delivery as a normal event, not as a rare bug, and return the original outcome safely.',
     reading: ['MessageIdempotencyRepository.java', 'MockChatFlowTest.java'],
-    lab: ['Send a message once.', 'Replay the same message ID and confirm History does not grow.']
+    lab: ['Send a message once.', 'Replay the same message ID and confirm History does not grow.'],
+    appliedExample: {
+      problem: 'A chat platform can retry the same message after timeout, so the backend may receive duplicate delivery.',
+      projectApplication: 'MockChatService checks message_idempotency before executing workflow and returns the original bot response when the message_id was already processed.',
+      mentorExplanation: 'Teach idempotency as a normal API behavior: duplicate requests should be safe and should return useful information, not corrupt session state.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+        symbol: 'processLocked(...) duplicate branch',
+        snippet: 'idempotencyRepository.findResponseMessageId(conversation.id(), inbound.messageId())',
+        responsibility: 'Detects duplicate delivery before saving new messages or moving the session.',
+        why: 'The duplicate branch must run inside the conversation consistency boundary to avoid race conditions.',
+        explain: 'Replay the same message id and ask why the service returns the old response instead of silently ignoring it.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/MessageIdempotencyRepository.java',
+        symbol: 'findResponseMessageId(...) / save(...)',
+        snippet: 'conversation_id + external_message_id',
+        responsibility: 'Reads and writes the durable mapping from external message id to response message id.',
+        why: 'A durable idempotency key survives process restarts and documents retry behavior.',
+        explain: 'Ask the fresher which table row proves a retry was already handled.'
+      },
+      {
+        source: 'conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java',
+        symbol: 'duplicate message flow',
+        snippet: 'duplicate=true',
+        responsibility: 'Verifies duplicate replay reuses the original response and does not create duplicate history.',
+        why: 'The integration test proves controller, service, database, and workflow behavior work together.',
+        explain: 'Run the test or replay duplicate in UI and compare history count before and after.'
+      }
+    ]
   },
   {
     number: '07',
@@ -454,7 +747,38 @@ export const learningSessions = [
     demo: 'Explain why same-conversation messages are serialized while different conversations can run in parallel.',
     lesson: 'Concurrency design starts by identifying the unit of consistency. In this project, the conversation is the consistency boundary for session updates.',
     reading: ['ConversationLockManager.java', 'ConversationSessionRepository.java'],
-    lab: ['Explain local JVM lock limitations.', 'Draft optimistic locking SQL for session version.']
+    lab: ['Explain local JVM lock limitations.', 'Draft optimistic locking SQL for session version.'],
+    appliedExample: {
+      problem: 'Two near-simultaneous messages for the same conversation can both read the same current_node_id and write conflicting next states.',
+      projectApplication: 'MockChatService wraps processing in ConversationLockManager.withConversationLock and the session schema keeps a version field for the optimistic locking discussion.',
+      mentorExplanation: 'Teach the consistency boundary first: messages for different conversations can run in parallel, but one conversation session must be updated in order.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/ConversationLockManager.java',
+        symbol: 'withConversationLock(...)',
+        snippet: 'locks.computeIfAbsent(conversationId, ignored -> new ReentrantLock())',
+        responsibility: 'Serializes operations for the same conversation inside one JVM.',
+        why: 'It prevents same-conversation session state from being updated concurrently in the local training runtime.',
+        explain: 'Ask why this is enough for one local app instance and why production needs database or distributed coordination.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+        symbol: 'handleIncoming(...)',
+        snippet: 'lockManager.withConversationLock(conversation.id(), () -> processLocked(...))',
+        responsibility: 'Places idempotency, workflow execution, session update, history, and trace inside one serialized block.',
+        why: 'The critical section contains all mutable state transitions that must not interleave for one conversation.',
+        explain: 'Draw Message A and Message B entering this method and show which one waits.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/ConversationSessionRepository.java',
+        symbol: 'update(...)',
+        snippet: 'version = ?',
+        responsibility: 'Persists the next current_node_id and increments the visible session version.',
+        why: 'The version field gives freshers a bridge to optimistic locking even though the sample uses a local lock.',
+        explain: 'Ask how the SQL would change to update WHERE id = ? AND version = ? in a multi-node deployment.'
+      }
+    ]
   },
   {
     number: '08',
@@ -464,7 +788,38 @@ export const learningSessions = [
     demo: 'Inspect mock action execution and design retry, backoff, and dead-letter extensions.',
     lesson: 'External actions can fail. Production design needs clear action boundaries, timeout behavior, retry policy, backoff strategy, and failed-task storage.',
     reading: ['ActionAdapter.java', 'MockActionAdapter.java'],
-    lab: ['Inspect action_executions after ORDER_LOOKUP.', 'Design a retry table for async action processing.']
+    lab: ['Inspect action_executions after ORDER_LOOKUP.', 'Design a retry table for async action processing.'],
+    appliedExample: {
+      problem: 'Workflow ACTION nodes call external systems that can fail, timeout, or return partial data.',
+      projectApplication: 'WorkflowExecutionEngine calls ActionAdapter, MockActionAdapter simulates order lookup and ticket creation, and MockChatService stores action_executions for debug.',
+      mentorExplanation: 'Teach action as a boundary: the engine decides when to call, the adapter hides external details, and persistence records enough evidence for retry design.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/ActionAdapter.java',
+        symbol: 'execute(String actionName, String input)',
+        snippet: 'ActionResult execute(String actionName, String input)',
+        responsibility: 'Defines the stable boundary for workflow ACTION nodes to call external capabilities.',
+        why: 'The engine should not know whether an action is a REST call, queue task, database lookup, or mock.',
+        explain: 'Ask the fresher where timeout and retry policy should live when this mock becomes a real webhook.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java',
+        symbol: 'ORDER_LOOKUP / TICKET_CREATION',
+        snippet: 'return new ActionResult(true, "Order A123 dang duoc xu ly.", ...)',
+        responsibility: 'Provides deterministic fake external responses for local demo and tests.',
+        why: 'A stable mock keeps the 90-minute training demo reliable while still showing adapter boundaries.',
+        explain: 'Run an ORDER_LOOKUP message and ask which response_json should be persisted.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+        symbol: 'actionExecutionRepository.save(...)',
+        snippet: 'ActionStatus.DONE, attempt_count = 1',
+        responsibility: 'Stores action execution evidence linked to trace, conversation, session, and node.',
+        why: 'The record becomes the seed for retry/backoff/dead-letter extensions.',
+        explain: 'Ask the fresher what fields they would add for next_retry_at and failure_reason.'
+      }
+    ]
   },
   {
     number: '09',
@@ -474,7 +829,38 @@ export const learningSessions = [
     demo: 'Use History, Session, Debug Trace, structured logs, and metrics to reconstruct a message flow.',
     lesson: 'Observability is not decoration. It is the system contract that lets engineers explain what happened for one user, one message, one session, and one workflow node.',
     reading: ['MockChatService.java', 'docs/design/architecture.md#10-observability'],
-    lab: ['Open trace API after a message.', 'Map request_id to message history and execution trace.']
+    lab: ['Open trace API after a message.', 'Map request_id to message history and execution trace.'],
+    appliedExample: {
+      problem: 'When a bot gives a wrong response, engineers need to reconstruct the path from request to node decision.',
+      projectApplication: 'The service writes structured logs, messages, execution_traces, action_executions, and exposes history/session/trace APIs consumed by the React debug panels.',
+      mentorExplanation: 'Explain logs, metrics, and traces as different answers: what happened, how often/how slow, and which exact path one message took.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
+        symbol: 'structured log statement',
+        snippet: 'request_id={} message_id={} conversation_id={} session_id={} node_id={}',
+        responsibility: 'Emits searchable identifiers for one processed message and its workflow node result.',
+        why: 'Without correlation fields, production debugging becomes manual guessing.',
+        explain: 'Ask the fresher to search one request_id across response, log, message history, and trace.'
+      },
+      {
+        source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java',
+        symbol: 'history/session/trace endpoints',
+        snippet: '@GetMapping("/conversations/{conversationId}/trace")',
+        responsibility: 'Exposes durable debug evidence to the UI and mentor-led troubleshooting flow.',
+        why: 'Debug APIs make observability concrete in local training before introducing production tooling.',
+        explain: 'Open the trace panel after sending a message and map each row back to node_id and message_id.'
+      },
+      {
+        source: 'conversation-app/src/main/resources/application.yml',
+        symbol: 'management.endpoints.web.exposure.include',
+        snippet: 'include: health,info,metrics',
+        responsibility: 'Exposes the Actuator metrics endpoint used for metrics-outline discussion.',
+        why: 'Metrics complete the observability triangle without adding a full dashboard to the sample.',
+        explain: 'Ask what counter and timer should be added around ACTION execution in a production follow-up.'
+      }
+    ]
   },
   {
     number: '10',
@@ -484,7 +870,38 @@ export const learningSessions = [
     demo: 'Build a refund-support automation and defend it with one unit test and one integration test.',
     lesson: 'The capstone checks whether freshers can connect product behavior, API contract, workflow design, state safety, observability, and testing into one coherent change.',
     reading: ['docs/training/knowledge-program.md', 'MockChatFlowTest.java'],
-    lab: ['Build refund-support workflow JSON.', 'Present happy path, fallback path, and test evidence.']
+    lab: ['Build refund-support workflow JSON.', 'Present happy path, fallback path, and test evidence.'],
+    appliedExample: {
+      problem: 'A fresher needs to prove a new automation behavior is correct without relying only on manual UI clicking.',
+      projectApplication: 'The project combines unit tests for workflow logic, integration tests for API flow, source docs for expectations, and the React console for final demo evidence.',
+      mentorExplanation: 'Use the capstone as a review gate: behavior, contract, data consistency, observability, and tests must all tell the same story.'
+    },
+    codeWalkthrough: [
+      {
+        source: 'docs/training/knowledge-program.md',
+        symbol: 'Capstone checklist',
+        snippet: 'Build refund-support workflow JSON',
+        responsibility: 'Defines the final exercise and the evidence expected from freshers.',
+        why: 'A capstone converts isolated topics into one coherent engineering change.',
+        explain: 'Ask the fresher to present the workflow, tests, and trace evidence in that order.'
+      },
+      {
+        source: 'conversation-app/src/test/java/com/zalo/training/conversation/workflow/WorkflowValidatorTest.java',
+        symbol: 'validator behavior tests',
+        snippet: 'assertThat(result.valid()).isFalse()',
+        responsibility: 'Shows how publish validation should be tested before adding new workflow rules.',
+        why: 'Validation bugs can break all automations, so they need focused tests.',
+        explain: 'Have the fresher write the failing validation test before implementing a new rule.'
+      },
+      {
+        source: 'conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java',
+        symbol: 'end-to-end flow test',
+        snippet: 'mock chat message -> workflow response -> trace',
+        responsibility: 'Exercises the main runtime path across API, persistence, workflow, idempotency, and debug evidence.',
+        why: 'The integration test is the final proof that the capstone behavior works through real boundaries.',
+        explain: 'Ask which assertions belong in unit tests and which belong in this full-flow test.'
+      }
+    ]
   }
 ]
 

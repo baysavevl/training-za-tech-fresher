@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { withJsonHeaders } from './apiClient.js'
 import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
-import { knowledgeSelectionForTopic, roadmapDetailSelection, toggleExpandedSession } from './trainingNavigation.js'
+import { knowledgeSelectionForTopic, sessionDetailPath, sessionFromPath } from './trainingNavigation.js'
 import { sourceReferencesFor } from './trainingSources.js'
 import { learningSessions, projectBrief, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
@@ -42,6 +42,9 @@ function App() {
   }
 
   if (path.startsWith('/training')) {
+    if (path.startsWith('/training/session/')) {
+      return <SessionDetailPage session={sessionFromPath(path)} navigate={navigate} />
+    }
     return <TrainingPortal navigate={navigate} />
   }
 
@@ -484,7 +487,6 @@ function TrainingPortal({ navigate }) {
   const [activeTopicId, setActiveTopicId] = useState(trainingTopics[0].id)
   const [activeSessionNumber, setActiveSessionNumber] = useState(learningSessions[0].number)
   const [activeBriefTabId, setActiveBriefTabId] = useState(projectBrief.tabs[0].id)
-  const [expandedSessionNumbers, setExpandedSessionNumbers] = useState([learningSessions[0].number])
   const [sourceFile, setSourceFile] = useState(null)
   const [sourceError, setSourceError] = useState('')
   const [sourceLoading, setSourceLoading] = useState(false)
@@ -504,10 +506,9 @@ function TrainingPortal({ navigate }) {
   }
 
   function openRoadmapDetail(sessionNumber) {
-    const selection = roadmapDetailSelection(sessionNumber)
-    setExpandedSessionNumbers(current => toggleExpandedSession(current, selection.sessionNumber))
-    setActiveSessionNumber(selection.sessionNumber)
-    scrollToSection(selection.scrollTarget)
+    const session = learningSessions.find(item => item.number === sessionNumber) || learningSessions[0]
+    setActiveTopicId(session.topicId)
+    setActiveSessionNumber(session.number)
   }
 
   async function openSource(path) {
@@ -564,7 +565,7 @@ function TrainingPortal({ navigate }) {
         </div>
       </section>
 
-      <ProjectBrief activeTabId={activeBriefTabId} onChangeTab={setActiveBriefTabId} />
+      <ProjectBrief activeTabId={activeBriefTabId} onChangeTab={setActiveBriefTabId} onOpenSource={openSource} />
 
       <KnowledgeDetail
         topic={activeTopic}
@@ -598,7 +599,7 @@ function TrainingPortal({ navigate }) {
         <div className="session-list">
           {learningSessions.map(session => (
             <article
-              className={`session-item ${expandedSessionNumbers.includes(session.number) ? 'expanded' : ''}`}
+              className="session-item"
               id={`session-${session.number}`}
               key={session.number}
             >
@@ -609,13 +610,16 @@ function TrainingPortal({ navigate }) {
                   <p>{session.demo}</p>
                 </div>
                 <small>{session.duration}</small>
-                <button type="button" onClick={() => openRoadmapDetail(session.number)}>
-                  {expandedSessionNumbers.includes(session.number) ? 'Hide detail' : 'Open detail'}
-                </button>
+                <a
+                  className="button-link"
+                  href={sessionDetailPath(session.number)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => openRoadmapDetail(session.number)}
+                >
+                  Open detail
+                </a>
               </div>
-              {expandedSessionNumbers.includes(session.number) ? (
-                <SessionDetail session={session} onOpenConcept={openKnowledge} onOpenSource={openSource} />
-              ) : null}
             </article>
           ))}
         </div>
@@ -635,7 +639,180 @@ function TrainingPortal({ navigate }) {
   )
 }
 
-function ProjectBrief({ activeTabId, onChangeTab }) {
+function SessionDetailPage({ session, navigate }) {
+  const topic = trainingTopics.find(item => item.id === session.topicId) || trainingTopics[0]
+  const [sourceFile, setSourceFile] = useState(null)
+  const [sourceError, setSourceError] = useState('')
+  const [sourceLoading, setSourceLoading] = useState(false)
+
+  function scrollToSection(targetId) {
+    window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
+  async function openSource(path) {
+    setSourceLoading(true)
+    setSourceError('')
+    try {
+      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
+      const body = await response.json()
+      if (!response.ok) {
+        throw new Error(body?.message || `${response.status} ${response.statusText}`)
+      }
+      setSourceFile(body)
+      scrollToSection('source-viewer')
+    } catch (error) {
+      setSourceError(error.message)
+      setSourceFile(null)
+      scrollToSection('source-viewer')
+    } finally {
+      setSourceLoading(false)
+    }
+  }
+
+  return (
+    <main className="training-page session-page">
+      <nav className="landing-nav">
+        <div className="brand compact">
+          <FileJson size={24} aria-hidden="true" />
+          <div>
+            <h1>Session {session.number}</h1>
+            <p>{topic.label} · {topic.title}</p>
+          </div>
+        </div>
+        <div className="nav-actions">
+          <button type="button" onClick={() => navigate('/training')}>
+            <Workflow size={16} aria-hidden="true" /> Training
+          </button>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Demo console
+          </button>
+        </div>
+      </nav>
+
+      <section className="session-hero">
+        <div>
+          <p className="eyebrow">{session.duration} mentoring session</p>
+          <h2>{session.number}. {session.title}</h2>
+          <p>{session.lesson}</p>
+        </div>
+        <div className="session-hero-facts">
+          <span>{topic.label}</span>
+          <strong>{topic.title}</strong>
+          <small>{session.demo}</small>
+        </div>
+      </section>
+
+      <section className="session-detail-layout">
+        <article className="session-card">
+          <p className="eyebrow">Concept</p>
+          <h3>Definition and explanation</h3>
+          <p>{topic.definition}</p>
+          <p>{topic.explanation}</p>
+        </article>
+        <article className="session-card">
+          <p className="eyebrow">Example</p>
+          <h3>{topic.example.title}</h3>
+          <ol>
+            {topic.example.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
+        </article>
+        <article className="session-card applied-card">
+          <p className="eyebrow">Applied to this project</p>
+          <h3>How this concept shows up in the automation system</h3>
+          <dl>
+            <div>
+              <dt>Problem</dt>
+              <dd>{session.appliedExample.problem}</dd>
+            </div>
+            <div>
+              <dt>Project application</dt>
+              <dd>{session.appliedExample.projectApplication}</dd>
+            </div>
+            <div>
+              <dt>How to explain</dt>
+              <dd>{session.appliedExample.mentorExplanation}</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section className="code-walkthrough" aria-label="Code walkthrough">
+        <div className="section-heading">
+          <p className="eyebrow">Code walkthrough</p>
+          <h3>Files, snippets, responsibilities, and mentor explanation</h3>
+        </div>
+        <div className="code-card-grid">
+          {session.codeWalkthrough.map(item => (
+            <article className="code-card" key={`${item.source}-${item.symbol}`}>
+              <header>
+                <code>{item.source}</code>
+                <button type="button" onClick={() => openSource(item.source)}>
+                  <FileText size={14} aria-hidden="true" /> View source
+                </button>
+              </header>
+              <h4>{item.symbol}</h4>
+              <pre><code>{item.snippet}</code></pre>
+              <dl>
+                <div>
+                  <dt>Function</dt>
+                  <dd>{item.responsibility}</dd>
+                </div>
+                <div>
+                  <dt>Why this design</dt>
+                  <dd>{item.why}</dd>
+                </div>
+                <div>
+                  <dt>How to explain</dt>
+                  <dd>{item.explain}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="session-lab-grid">
+        <article className="session-card">
+          <p className="eyebrow">Lab</p>
+          <h3>Run this session</h3>
+          <ol>
+            {session.lab.map(item => <li key={item}>{item}</li>)}
+          </ol>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Open demo console
+          </button>
+        </article>
+        <article className="session-card">
+          <p className="eyebrow">Concept demo</p>
+          <h3>{topic.conceptDemo.title}</h3>
+          <p>{topic.conceptDemo.scenario}</p>
+          <ul>
+            {topic.conceptDemo.evidence.map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </article>
+        <article className="session-card">
+          <p className="eyebrow">Reading</p>
+          <h3>Source references</h3>
+          <SourceReferenceList items={session.reading} onOpenSource={openSource} />
+        </article>
+      </section>
+
+      <SourceViewer
+        source={sourceFile}
+        loading={sourceLoading}
+        error={sourceError}
+        onClose={() => {
+          setSourceFile(null)
+          setSourceError('')
+        }}
+      />
+    </main>
+  )
+}
+
+function ProjectBrief({ activeTabId, onChangeTab, onOpenSource }) {
   const activeTab = projectBrief.tabs.find(tab => tab.id === activeTabId) || projectBrief.tabs[0]
   const hasGroups = Array.isArray(activeTab.groups)
   const itemCount = hasGroups
@@ -687,6 +864,7 @@ function ProjectBrief({ activeTabId, onChangeTab }) {
                 <ul>
                   {group.items.map(item => <li key={item}>{item}</li>)}
                 </ul>
+                {group.coverage ? <SourceCoverageList items={group.coverage} onOpenSource={onOpenSource} /> : null}
               </article>
             ))}
           </div>
@@ -702,6 +880,21 @@ function ProjectBrief({ activeTabId, onChangeTab }) {
         )}
       </div>
     </section>
+  )
+}
+
+function SourceCoverageList({ items, onOpenSource }) {
+  return (
+    <div className="coverage-list" aria-label="Source coverage">
+      <span>Source coverage</span>
+      {items.map(item => (
+        <button type="button" onClick={() => onOpenSource(item.source)} key={`${item.source}-${item.label}`}>
+          <FileText size={14} aria-hidden="true" />
+          <span>{item.label}</span>
+          <small>{item.status}</small>
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -766,9 +959,16 @@ function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, onOpenSource
         <strong>Related roadmap sessions</strong>
         <div>
           {relatedSessions.map(item => (
-            <button type="button" onClick={() => onOpenSessionDetail(item.number)} key={item.number}>
+            <a
+              className="button-link"
+              href={sessionDetailPath(item.number)}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => onOpenSessionDetail(item.number)}
+              key={item.number}
+            >
               {item.number} · {item.title}
-            </button>
+            </a>
           ))}
         </div>
       </div>

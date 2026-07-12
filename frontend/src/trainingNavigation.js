@@ -27,6 +27,19 @@ export function roadmapDetailSelection(sessionNumber) {
   }
 }
 
+export function sessionDetailPath(sessionNumber) {
+  return `/training/session/${sessionFromNumber(sessionNumber).number}`
+}
+
+export function sessionFromPath(path) {
+  const match = typeof path === 'string' ? path.match(/^\/training\/session\/(\d{2})$/) : null
+  return sessionFromNumber(match?.[1])
+}
+
+function sessionFromNumber(sessionNumber) {
+  return learningSessions.find(item => item.number === sessionNumber) || learningSessions[0]
+}
+
 export function toggleExpandedSession(expandedSessionNumbers, sessionNumber) {
   if (expandedSessionNumbers.includes(sessionNumber)) {
     return expandedSessionNumbers.filter(item => item !== sessionNumber)

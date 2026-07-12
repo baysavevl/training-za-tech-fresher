@@ -5,6 +5,8 @@ import {
   firstSessionNumberForTopic,
   knowledgeSelectionForTopic,
   roadmapDetailSelection,
+  sessionDetailPath,
+  sessionFromPath,
   toggleExpandedSession
 } from './trainingNavigation.js'
 
@@ -17,7 +19,14 @@ test('knowledge topic selection uses the first session that belongs to the topic
   })
 })
 
-test('roadmap detail opens the selected session inline instead of jumping to knowledge tab', () => {
+test('roadmap detail exposes a dedicated session route', () => {
+  assert.equal(sessionDetailPath('07'), '/training/session/07')
+  assert.equal(sessionDetailPath('99'), '/training/session/01')
+  assert.equal(sessionFromPath('/training/session/07').title, 'Concurrency')
+  assert.equal(sessionFromPath('/training/session/99').number, '01')
+})
+
+test('roadmap detail keeps selected session context for legacy inline navigation', () => {
   assert.deepEqual(roadmapDetailSelection('09'), {
     topicId: 'ob',
     sessionNumber: '09',

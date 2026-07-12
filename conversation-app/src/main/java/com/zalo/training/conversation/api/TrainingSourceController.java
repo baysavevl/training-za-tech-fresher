@@ -15,7 +15,7 @@ import java.util.Set;
 @RestController
 public class TrainingSourceController {
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".md", ".sql", ".java", ".proto");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(".md", ".sql", ".java", ".proto", ".yml", ".yaml");
     private static final List<String> ALLOWED_ROOTS = List.of(
             "docs/",
             "conversation-app/src/",
@@ -87,6 +87,9 @@ public class TrainingSourceController {
         }
         if (lower.endsWith(".proto")) {
             return "protobuf";
+        }
+        if (lower.endsWith(".yml") || lower.endsWith(".yaml")) {
+            return "yaml";
         }
         return "text";
     }

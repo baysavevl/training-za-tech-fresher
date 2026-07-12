@@ -13,6 +13,12 @@ test('sourceReferencesFor resolves markdown and sql paths directly', () => {
       path: 'conversation-app/src/main/resources/schema.sql'
     }
   ])
+  assert.deepEqual(sourceReferencesFor('conversation-app/src/main/resources/application.yml'), [
+    {
+      label: 'conversation-app/src/main/resources/application.yml',
+      path: 'conversation-app/src/main/resources/application.yml'
+    }
+  ])
 })
 
 test('sourceReferencesFor resolves Java class references inside combined labels', () => {

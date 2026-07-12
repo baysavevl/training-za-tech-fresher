@@ -40,6 +40,24 @@ test('learning sessions stay aligned with the 10-session mentoring format', () =
   assert.ok(learningSessions.every(session => session.lab.length >= 2), 'each session should have lab steps')
 })
 
+test('each roadmap session has a dedicated applied source walkthrough', () => {
+  for (const session of learningSessions) {
+    assert.ok(session.appliedExample?.problem.length > 40, `${session.number} needs an applied problem`)
+    assert.ok(session.appliedExample?.projectApplication.length > 60, `${session.number} needs project application`)
+    assert.ok(session.appliedExample?.mentorExplanation.length > 60, `${session.number} needs mentor explanation`)
+    assert.ok(session.codeWalkthrough?.length >= 2, `${session.number} needs source walkthrough items`)
+
+    for (const item of session.codeWalkthrough) {
+      assert.match(item.source, /^(conversation-app|intent-contract|intent-service|docs)\//, `${session.number} source should be local`)
+      assert.ok(item.symbol.length > 3, `${session.number} source item needs symbol`)
+      assert.ok(item.snippet.length > 10, `${session.number} source item needs snippet`)
+      assert.ok(item.responsibility.length > 40, `${session.number} source item needs responsibility`)
+      assert.ok(item.why.length > 40, `${session.number} source item needs why`)
+      assert.ok(item.explain.length > 40, `${session.number} source item needs explanation`)
+    }
+  }
+})
+
 test('project brief captures the complete project scope and checkpoints', () => {
   assert.equal(projectBrief.title, 'Conversation Automation System')
   assert.deepEqual(projectBrief.tabs.map(tab => tab.id), [
@@ -56,6 +74,10 @@ test('project brief captures the complete project scope and checkpoints', () => 
   assert.ok(description.groups.some(group => group.title === 'Automation Execution Engine'))
   assert.ok(description.groups.some(group => group.title === 'Nâng cao (Optional)'))
   assert.ok(description.groups.every(group => group.items.length >= 3), 'each description group needs enough details')
+  assert.ok(description.groups.every(group => group.coverage?.length >= 2), 'each description group needs source coverage refs')
+  assert.ok(description.groups.flatMap(group => group.coverage).some(item => item.source.includes('MockChatService.java')))
+  assert.ok(description.groups.flatMap(group => group.coverage).some(item => item.source.includes('schema.sql')))
+  assert.ok(description.groups.flatMap(group => group.coverage).some(item => item.status === 'optional-design'))
 
   const requirements = projectBrief.tabs.find(tab => tab.id === 'requirements')
   assert.equal(requirements.items.length, 11)
