@@ -6,7 +6,8 @@ import {
   SAMPLE_WORKFLOW,
   createAutoDemoMessageFields,
   hydrateDemoState,
-  initialDemoState
+  initialDemoState,
+  updateOperationResponses
 } from './demoState.js'
 
 test('hydrateDemoState resets stale local state from older UI versions', () => {
@@ -54,4 +55,14 @@ test('auto demo message fields start a fresh non-duplicate conversation', () => 
     messageId: 'msg-auto-2n9c',
     requestId: 'request-auto-2n9c'
   })
+})
+
+test('workflow operation response does not replace the last chat response', () => {
+  const chatResponse = { response: 'Order A123 dang duoc xu ly.', duplicate: false }
+  const publishResponse = { id: 'workflow-version-1', status: 'PUBLISHED' }
+
+  const next = updateOperationResponses({ chat: chatResponse, workflow: null }, 'workflow', publishResponse)
+
+  assert.deepEqual(next.chat, chatResponse)
+  assert.deepEqual(next.workflow, publishResponse)
 })

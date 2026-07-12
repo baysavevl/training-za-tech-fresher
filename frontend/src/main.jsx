@@ -22,7 +22,8 @@ import {
   SAMPLE_WORKFLOW,
   createAutoDemoMessageFields,
   hydrateDemoState,
-  initialDemoState
+  initialDemoState,
+  updateOperationResponses
 } from './demoState.js'
 import {
   knowledgeSelectionForTopic,
@@ -74,7 +75,7 @@ function Dashboard({ navigate }) {
   const [history, setHistory] = useState([])
   const [session, setSession] = useState(null)
   const [trace, setTrace] = useState([])
-  const [lastResponse, setLastResponse] = useState(null)
+  const [responses, setResponses] = useState({ chat: null, workflow: null })
   const [events, setEvents] = useState([])
   const [busy, setBusy] = useState(false)
 
@@ -130,7 +131,7 @@ function Dashboard({ navigate }) {
     }))
     if (result) {
       patch({ automationId: result.id, workflowVersionId: '' })
-      setLastResponse(result)
+      setResponses(current => updateOperationResponses(current, 'workflow', result))
     }
     return result
   }
@@ -143,7 +144,7 @@ function Dashboard({ navigate }) {
     }))
     if (result) {
       patch({ workflowVersionId: result.id })
-      setLastResponse(result)
+      setResponses(current => updateOperationResponses(current, 'workflow', result))
     }
     return result
   }
@@ -153,7 +154,7 @@ function Dashboard({ navigate }) {
       method: 'POST'
     }))
     if (result) {
-      setLastResponse(result)
+      setResponses(current => updateOperationResponses(current, 'workflow', result))
     }
     return result
   }
@@ -173,7 +174,7 @@ function Dashboard({ navigate }) {
     }))
     if (result) {
       patch({ conversationId: result.conversationId })
-      setLastResponse(result)
+      setResponses(current => updateOperationResponses(current, 'chat', result))
       await refreshDebug(result.conversationId)
     }
     return result
@@ -220,7 +221,12 @@ function Dashboard({ navigate }) {
         ...(result.autoMessageFields || {}),
         conversationId: result.message?.conversationId || state.conversationId
       })
-      setLastResponse(result.message || result.published)
+      setResponses(current => {
+        const withWorkflow = updateOperationResponses(current, 'workflow', result.published)
+        return result.message
+          ? updateOperationResponses(withWorkflow, 'chat', result.message)
+          : withWorkflow
+      })
       if (result.message?.conversationId) {
         await refreshDebug(result.message.conversationId)
       }
@@ -250,7 +256,7 @@ function Dashboard({ navigate }) {
     setHistory([])
     setSession(null)
     setTrace([])
-    setLastResponse(null)
+    setResponses({ chat: null, workflow: null })
     setEvents([])
   }
 
@@ -318,49 +324,9 @@ function Dashboard({ navigate }) {
         </section>
 
         <div className="grid">
-          <section className="panel setup-panel">
-            <PanelTitle icon={<Database size={18} />} title="Workflow setup" />
-            <div className="step-help">
-              <strong>Manual controls (optional)</strong>
-              <span>Use these buttons when teaching the REST calls one by one. For live demo, use Run auto demo above.</span>
-            </div>
-            <div className="field-row">
-              <label>
-                Automation name
-                <input value={state.automationName} onChange={event => patch({ automationName: event.target.value })} />
-              </label>
-              <button type="button" onClick={createAutomation} disabled={busy}>
-                <Play size={16} aria-hidden="true" /> Create
-              </button>
-            </div>
-
-            <label className="json-field">
-              Workflow JSON
-              <textarea value={state.workflowJson} onChange={event => patch({ workflowJson: event.target.value })} spellCheck="false" />
-            </label>
-
-            <div className="button-row">
-              <button type="button" onClick={() => patch({ workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2) })} disabled={busy}>
-                <FileJson size={16} aria-hidden="true" /> Load sample
-              </button>
-              <button type="button" onClick={createWorkflow} disabled={!idsReady.automation || busy}>
-                <Copy size={16} aria-hidden="true" /> Save draft
-              </button>
-              <button type="button" className="primary" onClick={publishWorkflow} disabled={!idsReady.workflow || busy}>
-                <CheckCircle2 size={16} aria-hidden="true" /> Publish
-              </button>
-            </div>
-            <p className="button-note">
-              {!idsReady.automation
-                ? 'Save draft is locked until an automation exists. Use Create or Prepare only.'
-                : !idsReady.workflow
-                  ? 'Publish is locked until the workflow draft is saved.'
-                  : 'Workflow draft is ready to publish.'}
-            </p>
-          </section>
-
           <section className="panel chat-panel">
             <PanelTitle icon={<MessageSquare size={18} />} title="Mock chat" />
+            <ConversationState chatResponse={responses.chat} idsReady={idsReady} />
             <div className="field-grid">
               <label>
                 User ID
@@ -394,7 +360,7 @@ function Dashboard({ navigate }) {
                   ? 'Publish the workflow before sending a message.'
                   : 'Manual send is ready. Run auto demo always starts a fresh conversation with a fresh message ID.'}
             </p>
-            <JsonBlock title="Last response" data={lastResponse} />
+            <JsonBlock title="Last chat response" data={responses.chat} />
           </section>
 
           <section className="panel debug-panel">
@@ -407,9 +373,85 @@ function Dashboard({ navigate }) {
             <PanelTitle icon={<MessageSquare size={18} />} title="History" />
             <HistoryView history={history} />
           </section>
+
+          <details className="panel setup-panel advanced-panel">
+            <summary>
+              <span className="summary-icon"><Database size={18} aria-hidden="true" /></span>
+              <span>
+                <strong>Advanced workflow controls</strong>
+                <small>Create, save, and publish the workflow one API call at a time.</small>
+              </span>
+            </summary>
+            <div className="advanced-content">
+              <div className="field-row">
+                <label>
+                  Automation name
+                  <input value={state.automationName} onChange={event => patch({ automationName: event.target.value })} />
+                </label>
+                <button type="button" onClick={createAutomation} disabled={busy}>
+                  <Play size={16} aria-hidden="true" /> Create
+                </button>
+              </div>
+
+              <label className="json-field">
+                Workflow JSON
+                <textarea value={state.workflowJson} onChange={event => patch({ workflowJson: event.target.value })} spellCheck="false" />
+              </label>
+
+              <div className="button-row">
+                <button type="button" onClick={() => patch({ workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2) })} disabled={busy}>
+                  <FileJson size={16} aria-hidden="true" /> Load sample
+                </button>
+                <button type="button" onClick={createWorkflow} disabled={!idsReady.automation || busy}>
+                  <Copy size={16} aria-hidden="true" /> Save draft
+                </button>
+                <button type="button" className="primary" onClick={publishWorkflow} disabled={!idsReady.workflow || busy}>
+                  <CheckCircle2 size={16} aria-hidden="true" /> Publish
+                </button>
+              </div>
+              <p className="button-note">
+                {!idsReady.automation
+                  ? 'Save draft is locked until an automation exists. Use Create or Prepare only.'
+                  : !idsReady.workflow
+                    ? 'Publish is locked until the workflow draft is saved.'
+                    : 'Workflow draft is ready to publish.'}
+              </p>
+              <JsonBlock title="Last workflow operation" data={responses.workflow} />
+            </div>
+          </details>
         </div>
       </section>
     </main>
+  )
+}
+
+function ConversationState({ chatResponse, idsReady }) {
+  let title = 'Start with auto demo'
+  let detail = 'Run auto demo creates the workflow, sends one message, and fills the debug panels.'
+  let tone = 'waiting'
+
+  if (chatResponse?.duplicate) {
+    title = 'Duplicate replay confirmed'
+    detail = 'The same message ID reused the previous response and did not add history rows.'
+    tone = 'done'
+  } else if (chatResponse) {
+    title = 'Conversation response ready'
+    detail = 'Use Replay duplicate next to demonstrate idempotency.'
+    tone = 'ready'
+  } else if (idsReady.workflow) {
+    title = 'Workflow ready'
+    detail = 'Send a message manually or run auto demo to start a fresh conversation.'
+    tone = 'ready'
+  }
+
+  return (
+    <div className={`conversation-state ${tone}`}>
+      <CheckCircle2 size={18} aria-hidden="true" />
+      <div>
+        <strong>{title}</strong>
+        <span>{detail}</span>
+      </div>
+    </div>
   )
 }
 

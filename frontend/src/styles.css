@@ -1478,6 +1478,7 @@ label {
   border-radius: 8px;
   display: grid;
   gap: 3px;
+  min-width: 0;
   padding: 11px;
 }
 
@@ -1491,6 +1492,7 @@ label {
 .status-row strong {
   font-family: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 .status-row.active {
@@ -1588,6 +1590,54 @@ label {
   gap: 14px;
 }
 
+.advanced-panel {
+  grid-column: 1 / -1;
+}
+
+.advanced-panel summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  list-style: none;
+}
+
+.advanced-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-panel summary strong {
+  display: block;
+  font-size: 16px;
+}
+
+.advanced-panel summary small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.advanced-panel .summary-icon {
+  align-items: center;
+  background: #e8f0fe;
+  border-radius: 8px;
+  color: var(--blue);
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.advanced-content {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
 .debug-panel,
 .history-panel {
   align-self: start;
@@ -1608,6 +1658,55 @@ label {
 
 .panel-title h3 {
   font-size: 16px;
+}
+
+.conversation-state {
+  align-items: start;
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 12px;
+}
+
+.conversation-state svg {
+  color: #9aa0a6;
+  margin-top: 2px;
+}
+
+.conversation-state.ready {
+  background: #e8f0fe;
+  border-color: #d2e3fc;
+}
+
+.conversation-state.ready svg {
+  color: var(--blue);
+}
+
+.conversation-state.done {
+  background: #e6f4ea;
+  border-color: #ceead6;
+}
+
+.conversation-state.done svg {
+  color: var(--green);
+}
+
+.conversation-state strong,
+.conversation-state span {
+  display: block;
+}
+
+.conversation-state strong {
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.conversation-state span {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .field-row {
@@ -1824,6 +1923,10 @@ code {
   .landing,
   .training-page {
     padding: 14px;
+  }
+
+  .sidebar {
+    grid-template-columns: 1fr;
   }
 
   .landing-nav,

@@ -40,6 +40,21 @@ export function createAutoDemoMessageFields(seed = Date.now()) {
   }
 }
 
+export function updateOperationResponses(currentResponses, target, payload) {
+  const next = {
+    chat: currentResponses?.chat || null,
+    workflow: currentResponses?.workflow || null
+  }
+
+  if (target === 'chat') {
+    return { ...next, chat: payload }
+  }
+  if (target === 'workflow') {
+    return { ...next, workflow: payload }
+  }
+  return next
+}
+
 export function hydrateDemoState(rawValue) {
   if (!rawValue) {
     return initialDemoState
