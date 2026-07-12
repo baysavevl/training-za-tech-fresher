@@ -7,6 +7,8 @@ import {
   roadmapDetailSelection,
   sessionDetailPath,
   sessionFromPath,
+  topicDetailPath,
+  topicFromPath,
   toggleExpandedSession
 } from './trainingNavigation.js'
 
@@ -24,6 +26,13 @@ test('roadmap detail exposes a dedicated session route', () => {
   assert.equal(sessionDetailPath('99'), '/training/session/01')
   assert.equal(sessionFromPath('/training/session/07').title, 'Concurrency')
   assert.equal(sessionFromPath('/training/session/99').number, '01')
+})
+
+test('topic detail exposes a dedicated topic route', () => {
+  assert.equal(topicDetailPath('pc'), '/training/topic/pc')
+  assert.equal(topicDetailPath('missing'), '/training/topic/pc')
+  assert.equal(topicFromPath('/training/topic/pc').title, 'Parallelism & Concurrency')
+  assert.equal(topicFromPath('/training/topic/missing').id, 'pc')
 })
 
 test('roadmap detail keeps selected session context for legacy inline navigation', () => {

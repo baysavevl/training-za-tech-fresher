@@ -18,7 +18,13 @@ import {
 } from 'lucide-react'
 import { withJsonHeaders } from './apiClient.js'
 import { DEMO_STATE_VERSION, SAMPLE_WORKFLOW, hydrateDemoState, initialDemoState } from './demoState.js'
-import { knowledgeSelectionForTopic, sessionDetailPath, sessionFromPath } from './trainingNavigation.js'
+import {
+  knowledgeSelectionForTopic,
+  sessionDetailPath,
+  sessionFromPath,
+  topicDetailPath,
+  topicFromPath
+} from './trainingNavigation.js'
 import { sourceReferencesFor } from './trainingSources.js'
 import { learningSessions, projectBrief, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
@@ -42,6 +48,9 @@ function App() {
   }
 
   if (path.startsWith('/training')) {
+    if (path.startsWith('/training/topic/')) {
+      return <TopicDetailPage topic={topicFromPath(path)} navigate={navigate} />
+    }
     if (path.startsWith('/training/session/')) {
       return <SessionDetailPage session={sessionFromPath(path)} navigate={navigate} />
     }
@@ -587,7 +596,7 @@ function TrainingPortal({ navigate }) {
 
       <section className="topic-stack" aria-label="Foundation topics">
         {trainingTopics.map(topic => (
-          <TopicModule topic={topic} navigate={navigate} onOpenKnowledge={openKnowledge} key={topic.id} />
+          <TopicModule topic={topic} key={topic.id} />
         ))}
       </section>
 
@@ -812,6 +821,219 @@ function SessionDetailPage({ session, navigate }) {
   )
 }
 
+function TopicDetailPage({ topic, navigate }) {
+  const relatedSessions = learningSessions.filter(item => item.topicId === topic.id)
+  const demo = topic.conceptDemo
+  const [sourceFile, setSourceFile] = useState(null)
+  const [sourceError, setSourceError] = useState('')
+  const [sourceLoading, setSourceLoading] = useState(false)
+
+  const indicators = [
+    {
+      label: 'Guideline',
+      value: topic.label,
+      description: 'The source guideline bucket this concept belongs to.'
+    },
+    {
+      label: 'Why it matters',
+      value: 'Project behavior',
+      description: topic.summary
+    },
+    {
+      label: 'Demo',
+      value: demo.title,
+      description: demo.scenario
+    },
+    {
+      label: 'Evidence',
+      value: `${demo.evidence.length} checkpoints`,
+      description: 'What the mentor asks freshers to verify in the running automation project.'
+    }
+  ]
+
+  function scrollToSection(targetId) {
+    window.setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
+  }
+
+  async function openSource(path) {
+    setSourceLoading(true)
+    setSourceError('')
+    try {
+      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
+      const body = await response.json()
+      if (!response.ok) {
+        throw new Error(body?.message || `${response.status} ${response.statusText}`)
+      }
+      setSourceFile(body)
+      scrollToSection('source-viewer')
+    } catch (error) {
+      setSourceError(error.message)
+      setSourceFile(null)
+      scrollToSection('source-viewer')
+    } finally {
+      setSourceLoading(false)
+    }
+  }
+
+  return (
+    <main className="training-page topic-detail-page">
+      <nav className="landing-nav">
+        <div className="brand compact">
+          <FileJson size={24} aria-hidden="true" />
+          <div>
+            <h1>{topic.label}</h1>
+            <p>Dedicated concept detail</p>
+          </div>
+        </div>
+        <div className="nav-actions">
+          <button type="button" onClick={() => navigate('/training')}>
+            <Workflow size={16} aria-hidden="true" /> Training
+          </button>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Demo console
+          </button>
+        </div>
+      </nav>
+
+      <section className="topic-detail-hero">
+        <div>
+          <p className="eyebrow">Knowledge detail</p>
+          <h2>{topic.title}</h2>
+          <p>{topic.summary}</p>
+        </div>
+        <aside className="topic-detail-summary" aria-label="Topic route indicator">
+          <span>{topic.label}</span>
+          <strong>Separate tab detail</strong>
+          <small>
+            This page keeps the training roadmap stable while the mentor drills into one concept,
+            one demo, and the exact source files behind it.
+          </small>
+        </aside>
+      </section>
+
+      <section className="topic-indicator-grid" aria-label="Concept indicators and descriptions">
+        {indicators.map(item => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <p>{item.description}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="topic-detail-grid" aria-label="Concept explanation">
+        <article className="topic-detail-card definition">
+          <p className="eyebrow">Definition</p>
+          <h3>What freshers must remember</h3>
+          <p>{topic.definition}</p>
+        </article>
+        <article className="topic-detail-card">
+          <p className="eyebrow">Explanation</p>
+          <h3>How it behaves in backend systems</h3>
+          <p>{topic.explanation}</p>
+        </article>
+        <article className="topic-detail-card">
+          <p className="eyebrow">Example</p>
+          <h3>{topic.example.title}</h3>
+          <ol>
+            {topic.example.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
+        </article>
+        <article className="topic-detail-card demo-panel">
+          <p className="eyebrow">Concept demo</p>
+          <h3>{demo.title}</h3>
+          <p>{demo.scenario}</p>
+          <ol>
+            {demo.steps.map(step => <li key={step}>{step}</li>)}
+          </ol>
+          <button type="button" className="primary" onClick={() => navigate('/ui')}>
+            <Play size={16} aria-hidden="true" /> Run demo console
+          </button>
+        </article>
+      </section>
+
+      <section className="topic-lecture-layout" aria-label="Lecture plan and project hooks">
+        <article className="topic-detail-card">
+          <p className="eyebrow">Lecture notes</p>
+          <h3>How to teach this concept</h3>
+          <ol>
+            {topic.lecture.sections.map(section => <li key={section}>{section}</li>)}
+          </ol>
+        </article>
+        <article className="topic-detail-card">
+          <p className="eyebrow">Project hooks</p>
+          <h3>Where this appears in Conversation Automation</h3>
+          <ul>
+            {topic.demo.projectHooks.map(item => <li key={item}>{item}</li>)}
+          </ul>
+        </article>
+        <article className="topic-detail-card">
+          <p className="eyebrow">Demo evidence</p>
+          <h3>What to verify during mentoring</h3>
+          <ul>
+            {demo.evidence.map(item => <li key={item}>{item}</li>)}
+          </ul>
+          <div className="mentor-prompt">
+            <span>Mentor prompt</span>
+            <p>{demo.mentorPrompt}</p>
+          </div>
+        </article>
+      </section>
+
+      <section className="topic-detail-lab" aria-label="Visual chart and lab steps">
+        <LearningChart chart={topic.chart} />
+        <article className="topic-detail-card">
+          <p className="eyebrow">Lab steps</p>
+          <h3>Run this concept as a small standalone exercise</h3>
+          <ol>
+            {topic.lecture.lab.map(item => <li key={item}>{item}</li>)}
+          </ol>
+        </article>
+      </section>
+
+      <section className="topic-source-panel" aria-label="Source references">
+        <div className="section-heading">
+          <p className="eyebrow">Source walkthrough</p>
+          <h3>Files, docs, schemas, and tests to open during the lesson</h3>
+        </div>
+        <SourceReferenceList
+          items={[...topic.lecture.reading, ...topic.demo.projectHooks]}
+          onOpenSource={openSource}
+        />
+      </section>
+
+      <section className="related-sessions topic-related-sessions">
+        <strong>Related 90-minute sessions</strong>
+        <div>
+          {relatedSessions.map(item => (
+            <a
+              className="button-link"
+              href={sessionDetailPath(item.number)}
+              target="_blank"
+              rel="noreferrer"
+              key={item.number}
+            >
+              {item.number} · {item.title}
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <SourceViewer
+        source={sourceFile}
+        loading={sourceLoading}
+        error={sourceError}
+        onClose={() => {
+          setSourceFile(null)
+          setSourceError('')
+        }}
+      />
+    </main>
+  )
+}
+
 function ProjectBrief({ activeTabId, onChangeTab, onOpenSource }) {
   const activeTab = projectBrief.tabs.find(tab => tab.id === activeTabId) || projectBrief.tabs[0]
   const hasGroups = Array.isArray(activeTab.groups)
@@ -976,8 +1198,9 @@ function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, onOpenSource
   )
 }
 
-function TopicModule({ topic, navigate, onOpenKnowledge }) {
+function TopicModule({ topic }) {
   const demo = topic.conceptDemo
+  const detailPath = topicDetailPath(topic.id)
 
   return (
     <article className="topic-module" id={topic.id}>
@@ -987,7 +1210,7 @@ function TopicModule({ topic, navigate, onOpenKnowledge }) {
           <h3>{topic.title}</h3>
           <p>{topic.summary}</p>
         </div>
-        <button type="button" onClick={() => onOpenKnowledge(topic.id)}>Open detail</button>
+        <a className="button-link" href={detailPath} target="_blank" rel="noreferrer">Open detail</a>
       </header>
 
       <div className="knowledge-grid">
@@ -1010,9 +1233,9 @@ function TopicModule({ topic, navigate, onOpenKnowledge }) {
           <h4>Concept demo</h4>
           <strong>{demo.title}</strong>
           <p>{demo.scenario}</p>
-          <button type="button" onClick={() => onOpenKnowledge(topic.id)}>
+          <a className="button-link" href={detailPath} target="_blank" rel="noreferrer">
             <Play size={16} aria-hidden="true" /> Open lab detail
-          </button>
+          </a>
         </section>
       </div>
 

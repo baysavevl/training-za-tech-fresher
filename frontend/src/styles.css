@@ -1093,10 +1093,12 @@ label {
   gap: 8px;
 }
 
+.topic-detail-page,
 .session-page {
   max-width: 1320px;
 }
 
+.topic-detail-hero,
 .session-hero {
   align-items: stretch;
   background: var(--surface);
@@ -1110,12 +1112,14 @@ label {
   padding: 22px;
 }
 
+.topic-detail-hero h2,
 .session-hero h2 {
   font-size: 34px;
   letter-spacing: 0;
   margin: 4px 0 8px;
 }
 
+.topic-detail-hero p:not(.eyebrow),
 .session-hero p:not(.eyebrow) {
   color: var(--muted);
   line-height: 1.55;
@@ -1123,6 +1127,7 @@ label {
   max-width: 880px;
 }
 
+.topic-detail-summary,
 .session-hero-facts {
   align-content: start;
   background: #f8fafd;
@@ -1133,6 +1138,7 @@ label {
   padding: 16px;
 }
 
+.topic-detail-summary span,
 .session-hero-facts span {
   color: var(--blue);
   font-size: 12px;
@@ -1140,13 +1146,127 @@ label {
   text-transform: uppercase;
 }
 
+.topic-detail-summary strong,
 .session-hero-facts strong {
   font-size: 18px;
 }
 
+.topic-detail-summary small,
 .session-hero-facts small {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.topic-indicator-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.topic-indicator-grid article {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.topic-indicator-grid span {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.topic-indicator-grid strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.topic-indicator-grid p {
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.topic-detail-grid,
+.topic-detail-lab {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.topic-lecture-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.topic-detail-card,
+.topic-source-panel,
+.topic-related-sessions {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.topic-detail-card.definition {
+  background: #e8f0fe;
+  border-color: #d2e3fc;
+}
+
+.topic-detail-card.demo-panel {
+  background: #f8fafd;
+}
+
+.topic-detail-card h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.topic-detail-card p,
+.topic-detail-card li {
+  color: var(--muted);
+  line-height: 1.52;
+}
+
+.topic-detail-card p,
+.topic-detail-card ol,
+.topic-detail-card ul {
+  margin: 0;
+}
+
+.topic-detail-card ol,
+.topic-detail-card ul {
+  padding-left: 20px;
+}
+
+.topic-detail-card .button-link,
+.topic-detail-card button {
+  justify-self: start;
+}
+
+.topic-source-panel {
+  margin-bottom: 16px;
+}
+
+.topic-source-panel .source-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.topic-related-sessions {
+  margin-bottom: 16px;
 }
 
 .session-detail-layout,
@@ -1601,6 +1721,12 @@ code {
   .brief-heading,
   .brief-group-grid,
   .brief-checklist,
+  .topic-detail-hero,
+  .topic-indicator-grid,
+  .topic-detail-grid,
+  .topic-lecture-layout,
+  .topic-detail-lab,
+  .topic-source-panel .source-list,
   .session-hero,
   .session-detail-layout,
   .session-lab-grid,
@@ -1660,6 +1786,7 @@ code {
   .brief-heading,
   .brief-panel-header,
   .code-card header,
+  .topic-detail-hero,
   .session-hero,
   .session-detail {
     align-items: stretch;

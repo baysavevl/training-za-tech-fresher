@@ -1,4 +1,4 @@
-import { learningSessions } from './trainingContent.js'
+import { learningSessions, trainingTopics } from './trainingContent.js'
 
 export function firstSessionNumberForTopic(topicId) {
   return (learningSessions.find(session => session.topicId === topicId) || learningSessions[0]).number
@@ -38,6 +38,19 @@ export function sessionFromPath(path) {
 
 function sessionFromNumber(sessionNumber) {
   return learningSessions.find(item => item.number === sessionNumber) || learningSessions[0]
+}
+
+export function topicDetailPath(topicId) {
+  return `/training/topic/${topicFromId(topicId).id}`
+}
+
+export function topicFromPath(path) {
+  const match = typeof path === 'string' ? path.match(/^\/training\/topic\/([a-z-]+)$/) : null
+  return topicFromId(match?.[1])
+}
+
+function topicFromId(topicId) {
+  return trainingTopics.find(item => item.id === topicId) || trainingTopics[0]
 }
 
 export function toggleExpandedSession(expandedSessionNumbers, sessionNumber) {
