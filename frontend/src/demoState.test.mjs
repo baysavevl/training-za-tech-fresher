@@ -8,6 +8,7 @@ import {
   createManualMessageFields,
   createAutoDemoMessageFields,
   createAutoDemoScript,
+  createFriendlyDemoGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
@@ -149,6 +150,26 @@ test('project flow lanes explain the full setup, runtime, and debug path', () =>
   assert.equal(lanes.every((lane) => lane.checkpoints.length >= 2), true)
   assert.equal(lanes.some((lane) => lane.description.includes('history, trace, and session')), true)
   assert.equal(lanes.flatMap((lane) => lane.checkpoints).some((checkpoint) => checkpoint.surface === 'POST /api/chat'), true)
+})
+
+test('friendly demo guide explains the same project without API-first language', () => {
+  const guide = createFriendlyDemoGuide(123456)
+  const allCopy = [
+    guide.title,
+    guide.subtitle,
+    ...guide.steps.flatMap((step) => [step.title, step.description]),
+    ...guide.explainers.flatMap((item) => [item.term, item.meaning]),
+    ...guide.outcomes.map((item) => item.label)
+  ].join(' ')
+
+  assert.deepEqual(guide.steps.map((step) => step.title), [
+    'Run the support bot',
+    'Watch the customer conversation',
+    'Review the outcome'
+  ])
+  assert.deepEqual(guide.sampleChat.map((turn) => turn.text), ['hello', 'order', 'A123', 'update', 'delivery delay'])
+  assert.equal(guide.outcomes.some((item) => item.label === 'Ticket created'), true)
+  assert.equal(/POST|GET|\/api|node|edge|trace/i.test(allCopy), false)
 })
 
 test('history helpers preserve every message row and expose readable summary counts', () => {

@@ -303,6 +303,64 @@ export function createProjectFlowLanes(seed = Date.now()) {
   ]
 }
 
+export function createFriendlyDemoGuide(seed = Date.now()) {
+  const script = createAutoDemoScript(seed)
+
+  return {
+    title: 'Order support bot',
+    subtitle: 'A small assistant that answers an order question, updates the status, and opens a follow-up ticket.',
+    steps: [
+      {
+        title: 'Run the support bot',
+        description: 'One button prepares the bot and starts a realistic customer conversation.'
+      },
+      {
+        title: 'Watch the customer conversation',
+        description: 'The customer asks about an order, gives the order code, requests an update, then picks a support reason.'
+      },
+      {
+        title: 'Review the outcome',
+        description: 'The bot updates the order, creates a ticket, and keeps a full transcript for review.'
+      }
+    ],
+    sampleChat: script.map((step, index) => ({
+      speaker: 'Customer',
+      text: step.text,
+      note: [
+        'Starts the conversation',
+        'Chooses order support',
+        'Gives the order code',
+        'Asks for latest status',
+        'Chooses the support reason'
+      ][index]
+    })),
+    outcomes: [
+      { label: 'Order checked', value: 'A123 is found' },
+      { label: 'Status updated', value: 'PACKING becomes SHIPPING' },
+      { label: 'Ticket created', value: 'Delivery delay follow-up' },
+      { label: 'Duplicate safe', value: 'Retry does not add extra rows' }
+    ],
+    explainers: [
+      {
+        term: 'Bot',
+        meaning: 'The assistant your customer talks to.'
+      },
+      {
+        term: 'Conversation',
+        meaning: 'The back-and-forth messages between customer and bot.'
+      },
+      {
+        term: 'Rules',
+        meaning: 'The path that tells the bot what question or action comes next.'
+      },
+      {
+        term: 'Transcript',
+        meaning: 'The saved record of every customer message and bot reply.'
+      }
+    ]
+  }
+}
+
 export function normalizeHistoryItems(history = []) {
   if (!Array.isArray(history)) {
     return []

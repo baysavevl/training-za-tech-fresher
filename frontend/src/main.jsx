@@ -32,6 +32,7 @@ import {
   createAutoDemoMessageFields,
   createManualMessageFields,
   createAutoDemoScript,
+  createFriendlyDemoGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
@@ -120,10 +121,15 @@ function Dashboard({ navigate }) {
   const [responses, setResponses] = useState({ chat: null, workflow: null })
   const [events, setEvents] = useState([])
   const [busy, setBusy] = useState(false)
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('automationConsoleView') || 'simple')
 
   useEffect(() => {
     localStorage.setItem('conversationAutomationUi', JSON.stringify({ ...state, _version: DEMO_STATE_VERSION }))
   }, [state])
+
+  useEffect(() => {
+    localStorage.setItem('automationConsoleView', viewMode)
+  }, [viewMode])
 
   const idsReady = useMemo(() => ({
     automation: Boolean(state.automationId),
@@ -307,6 +313,13 @@ function Dashboard({ navigate }) {
     })
   }
 
+  useEffect(() => {
+    if (!state.conversationId || history.length || session || trace.length || events.length) {
+      return
+    }
+    refreshDebug(state.conversationId)
+  }, [state.conversationId])
+
   function resetDemo() {
     setState(initialDemoState)
     setHistory([])
@@ -352,12 +365,36 @@ function Dashboard({ navigate }) {
             <p className="eyebrow">One source deploy</p>
             <h2>{isStaticDemoRuntime ? 'React UI + browser demo backend' : 'React UI + Java API'}</h2>
           </div>
-          <div className="health-pill">
-            <Activity size={16} aria-hidden="true" />
-            {isStaticDemoRuntime ? 'Vercel static demo' : 'Spring Boot Java API'}
+          <div className="topbar-actions">
+            <div className="view-switch" role="tablist" aria-label="Console view">
+              <button type="button" className={viewMode === 'simple' ? 'active' : ''} onClick={() => setViewMode('simple')} aria-selected={viewMode === 'simple'}>
+                <MessageSquare size={15} aria-hidden="true" /> Simple view
+              </button>
+              <button type="button" className={viewMode === 'technical' ? 'active' : ''} onClick={() => setViewMode('technical')} aria-selected={viewMode === 'technical'}>
+                <Bug size={15} aria-hidden="true" /> Technical view
+              </button>
+            </div>
+            <div className="health-pill">
+              <Activity size={16} aria-hidden="true" />
+              {isStaticDemoRuntime ? 'Vercel static demo' : 'Spring Boot Java API'}
+            </div>
           </div>
         </header>
 
+        {viewMode === 'simple' ? (
+          <FriendlyConsole
+            busy={busy}
+            history={history}
+            idsReady={idsReady}
+            onPrepare={() => quickSetup(false)}
+            onRunDemo={() => quickSetup(true)}
+            onShowTechnical={() => setViewMode('technical')}
+            responses={responses}
+            session={session}
+            trace={trace}
+          />
+        ) : (
+          <>
         <section className="run-card">
           <div className="run-summary">
             <p className="eyebrow">Guided demo</p>
@@ -482,6 +519,8 @@ function Dashboard({ navigate }) {
             </div>
           </details>
         </div>
+          </>
+        )}
       </section>
     </main>
   )
@@ -998,6 +1037,158 @@ function commandErrorMessage(error) {
     return `${message}. Start Docker and the local Multica dev server.`
   }
   return message
+}
+
+function FriendlyConsole({ busy, history, idsReady, onPrepare, onRunDemo, onShowTechnical, responses, session, trace }) {
+  const guide = createFriendlyDemoGuide(123456)
+  const rows = normalizeHistoryItems(history)
+  const summary = summarizeHistory(history)
+  const hasTranscript = rows.length > 0
+  const latestBotReply = responses.chat?.response || [...rows].reverse().find(row => row.senderType === 'BOT')?.content || ''
+  const traceText = JSON.stringify(trace)
+  const outcomeState = {
+    'Order checked': /ORDER_STATUS/.test(traceText) || rows.some(row => /A123|PACKING|SHIPPING/i.test(row.content)),
+    'Status updated': /ORDER_STATUS_UPDATE/.test(traceText) || rows.some(row => /SHIPPING/i.test(row.content)),
+    'Ticket created': /TICKET_CREATION/.test(traceText) || session?.currentNodeId === 'end',
+    'Duplicate safe': Boolean(responses.chat?.duplicate)
+  }
+
+  return (
+    <div className="friendly-console">
+      <section className="friendly-hero">
+        <div>
+          <p className="eyebrow">Simple view</p>
+          <h3>{guide.title}</h3>
+          <p>{guide.subtitle}</p>
+          <div className="friendly-actions">
+            <button type="button" className="primary" onClick={onRunDemo} disabled={busy}>
+              <Send size={16} aria-hidden="true" /> Run the demo
+            </button>
+            <button type="button" onClick={onPrepare} disabled={busy}>
+              <CheckCircle2 size={16} aria-hidden="true" /> Prepare bot only
+            </button>
+            <button type="button" className="ghost" onClick={onShowTechnical}>
+              <Bug size={16} aria-hidden="true" /> Technical view
+            </button>
+          </div>
+        </div>
+        <div className="friendly-status-board" aria-label="Demo status">
+          <FriendlyStatus label="Bot" active={idsReady.automation} readyText="Ready" waitingText="Not prepared" />
+          <FriendlyStatus label="Rules" active={idsReady.workflow} readyText="Published" waitingText="Waiting" />
+          <FriendlyStatus label="Chat" active={idsReady.conversation} readyText="Started" waitingText="No chat yet" />
+          <FriendlyStatus label="Result" active={hasTranscript} readyText={`${summary.total} messages`} waitingText="Run demo" />
+        </div>
+      </section>
+
+      <section className="friendly-step-strip" aria-label="Friendly demo steps">
+        {guide.steps.map((step, index) => (
+          <article key={step.title}>
+            <span>{index + 1}</span>
+            <div>
+              <strong>{step.title}</strong>
+              <p>{step.description}</p>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <div className="friendly-layout">
+        <section className="friendly-section friendly-conversation">
+          <header>
+            <div>
+              <p className="eyebrow">Customer story</p>
+              <h4>{hasTranscript ? 'What happened in the chat' : 'What the demo will send'}</h4>
+            </div>
+            <span>{hasTranscript ? `${summary.customer} customer turns` : 'Preview'}</span>
+          </header>
+          {hasTranscript ? <FriendlyTranscript rows={rows} /> : <FriendlySampleChat turns={guide.sampleChat} />}
+        </section>
+
+        <section className="friendly-section friendly-result">
+          <header>
+            <div>
+              <p className="eyebrow">Result</p>
+              <h4>{session?.status === 'COMPLETED' ? 'The support case is finished' : 'Run the demo to see the result'}</h4>
+            </div>
+            <span>{session?.status || 'Waiting'}</span>
+          </header>
+          <div className="friendly-outcomes">
+            {guide.outcomes.map(outcome => (
+              <div className={outcomeState[outcome.label] ? 'ready' : ''} key={outcome.label}>
+                <CheckCircle2 size={16} aria-hidden="true" />
+                <div>
+                  <strong>{outcome.label}</strong>
+                  <small>{outcome.value}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="friendly-latest-reply">
+            <strong>Latest bot reply</strong>
+            <p>{latestBotReply || 'No reply yet. Run the demo to create the first support case.'}</p>
+          </div>
+        </section>
+      </div>
+
+      <section className="friendly-section friendly-explainer">
+        <header>
+          <div>
+            <p className="eyebrow">Plain English</p>
+            <h4>What the screen means</h4>
+          </div>
+          <button type="button" onClick={onShowTechnical}>
+            <Bug size={16} aria-hidden="true" /> See technical details
+          </button>
+        </header>
+        <dl>
+          {guide.explainers.map(item => (
+            <div key={item.term}>
+              <dt>{item.term}</dt>
+              <dd>{item.meaning}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </div>
+  )
+}
+
+function FriendlyStatus({ active, label, readyText, waitingText }) {
+  return (
+    <div className={active ? 'ready' : ''}>
+      <CheckCircle2 size={16} aria-hidden="true" />
+      <span>{label}</span>
+      <strong>{active ? readyText : waitingText}</strong>
+    </div>
+  )
+}
+
+function FriendlySampleChat({ turns }) {
+  return (
+    <div className="friendly-sample-chat">
+      {turns.map(turn => (
+        <div className="friendly-turn customer" key={turn.text}>
+          <strong>{turn.speaker}</strong>
+          <p>{turn.text}</p>
+          <small>{turn.note}</small>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function FriendlyTranscript({ rows }) {
+  return (
+    <div className="friendly-transcript">
+      {rows.map(row => (
+        <article className={`friendly-turn ${row.senderType === 'CUSTOMER' ? 'customer' : 'bot'}`} key={row.id}>
+          <strong>{row.senderType === 'CUSTOMER' ? 'Customer' : 'Bot'}</strong>
+          <p>{row.content}</p>
+          {row.intent ? <small>{row.intent}</small> : null}
+        </article>
+      ))}
+    </div>
+  )
 }
 
 function ConversationState({ chatResponse, idsReady }) {
