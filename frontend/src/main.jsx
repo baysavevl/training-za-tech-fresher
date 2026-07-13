@@ -16,7 +16,7 @@ import {
   Workflow,
   X
 } from 'lucide-react'
-import { withJsonHeaders } from './apiClient.js'
+import { readTrainingSource, requestJson } from './apiClient.js'
 import {
   DEMO_STATE_VERSION,
   SAMPLE_WORKFLOW,
@@ -26,6 +26,7 @@ import {
   initialDemoState,
   updateOperationResponses
 } from './demoState.js'
+import { shouldUseStaticDemoBackend } from './staticDemoBackend.js'
 import {
   knowledgeSelectionForTopic,
   sessionDetailPath,
@@ -69,6 +70,7 @@ function App() {
 }
 
 function Dashboard({ navigate }) {
+  const isStaticDemoRuntime = shouldUseStaticDemoBackend(window.location.hostname, import.meta.env)
   const [state, setState] = useState(() => {
     const saved = localStorage.getItem('conversationAutomationUi')
     return hydrateDemoState(saved)
@@ -102,13 +104,7 @@ function Dashboard({ navigate }) {
   }
 
   async function request(path, options = {}) {
-    const response = await fetch(path, withJsonHeaders(options))
-    const raw = await response.text()
-    const body = raw ? JSON.parse(raw) : null
-    if (!response.ok) {
-      throw new Error(body?.message || `${response.status} ${response.statusText}`)
-    }
-    return body
+    return requestJson(path, options)
   }
 
   async function run(label, work) {
@@ -278,7 +274,7 @@ function Dashboard({ navigate }) {
           <Workflow size={24} aria-hidden="true" />
           <div>
             <h1>Automation Console</h1>
-            <p>Local training runtime</p>
+            <p>{isStaticDemoRuntime ? 'Vercel static demo runtime' : 'Local Java training runtime'}</p>
           </div>
         </div>
 
@@ -305,11 +301,11 @@ function Dashboard({ navigate }) {
         <header className="topbar">
           <div>
             <p className="eyebrow">One source deploy</p>
-            <h2>React UI + Java API</h2>
+            <h2>{isStaticDemoRuntime ? 'React UI + browser demo backend' : 'React UI + Java API'}</h2>
           </div>
           <div className="health-pill">
             <Activity size={16} aria-hidden="true" />
-            Spring Boot static UI
+            {isStaticDemoRuntime ? 'Vercel static demo' : 'Spring Boot Java API'}
           </div>
         </header>
 
@@ -319,7 +315,11 @@ function Dashboard({ navigate }) {
             <h3>Auto demo runs the full product flow.</h3>
             <p>
               Click Run auto demo once. It creates the automation, publishes the sample workflow,
-              sends a five-message conversation, then refreshes history, trace, and session state.
+              sends a five-message conversation, categorizes the follow-up need, then refreshes history, trace, and session state.
+              {isStaticDemoRuntime
+                ? ' On Vercel the same API contract is simulated in the browser so the training demo can run without a Java server.'
+                : ' Local mode calls the Spring Boot API directly.'}
+              {' '}
               Manual controls below are only for teaching each API call separately.
             </p>
           </div>
@@ -333,6 +333,7 @@ function Dashboard({ navigate }) {
           </div>
           <DemoProgress idsReady={idsReady} debugReady={history.length > 0 || trace.length > 0} />
           <DemoScriptPreview />
+          <AutomationConceptMap />
         </section>
 
         <div className="grid">
@@ -448,7 +449,7 @@ function ConversationState({ chatResponse, idsReady }) {
     tone = 'done'
   } else if (chatResponse?.currentNodeId === 'end') {
     title = 'Automation completed'
-    detail = 'The bot collected the order id, updated status, created a ticket, and ended the session.'
+    detail = 'The bot collected the order id, updated status, categorized the follow-up need, created a ticket, and ended the session.'
     tone = 'done'
   } else if (chatResponse) {
     title = 'Conversation response ready'
@@ -476,11 +477,37 @@ function DemoScriptPreview() {
     <div className="script-preview" aria-label="Multi-turn automation script">
       {createAutoDemoScript(123456).map((step, index) => (
         <div className="script-step" key={step.messageId}>
-          <span>{String(index + 1).padStart(2, '0')}</span>
+          <span>{String(index + 1).padStart(2, '0')} · {step.expect}</span>
           <strong>{step.text}</strong>
-          <small>{step.expect}</small>
+          <small>{step.feature}</small>
+          <em>{step.flow}</em>
         </div>
       ))}
+    </div>
+  )
+}
+
+function AutomationConceptMap() {
+  return (
+    <div className="automation-concept-map" aria-label="Product flow to engineering concept map">
+      <div>
+        <p className="eyebrow">Product flow map</p>
+        <h4>Which feature proves which engineering concept</h4>
+      </div>
+      <div className="concept-map-grid">
+        {projectBrief.productConceptMap.map(item => (
+          <article key={item.feature}>
+            <header>
+              <strong>{item.feature}</strong>
+              <code>{item.flow}</code>
+            </header>
+            <p>{item.concepts.join(' · ')}</p>
+            <ul>
+              {item.evidence.map(evidence => <li key={evidence}>{evidence}</li>)}
+            </ul>
+          </article>
+        ))}
+      </div>
     </div>
   )
 }
@@ -645,12 +672,7 @@ function TrainingPortal({ navigate }) {
     setSourceLoading(true)
     setSourceError('')
     try {
-      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
-      const body = await response.json()
-      if (!response.ok) {
-        throw new Error(body?.message || `${response.status} ${response.statusText}`)
-      }
-      setSourceFile(body)
+      setSourceFile(await readTrainingSource(path))
       scrollToSection('source-viewer')
     } catch (error) {
       setSourceError(error.message)
@@ -785,12 +807,7 @@ function SessionDetailPage({ session, navigate }) {
     setSourceLoading(true)
     setSourceError('')
     try {
-      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
-      const body = await response.json()
-      if (!response.ok) {
-        throw new Error(body?.message || `${response.status} ${response.statusText}`)
-      }
-      setSourceFile(body)
+      setSourceFile(await readTrainingSource(path))
       scrollToSection('source-viewer')
     } catch (error) {
       setSourceError(error.message)
@@ -982,12 +999,7 @@ function TopicDetailPage({ topic, navigate }) {
     setSourceLoading(true)
     setSourceError('')
     try {
-      const response = await fetch(`/api/training/sources?path=${encodeURIComponent(path)}`, withJsonHeaders())
-      const body = await response.json()
-      if (!response.ok) {
-        throw new Error(body?.message || `${response.status} ${response.statusText}`)
-      }
-      setSourceFile(body)
+      setSourceFile(await readTrainingSource(path))
       scrollToSection('source-viewer')
     } catch (error) {
       setSourceError(error.message)
@@ -1074,6 +1086,17 @@ function TopicDetailPage({ topic, navigate }) {
           </button>
         </article>
       </section>
+
+      <section className="concept-foundation-layout" aria-label="Foundation concepts and mentoring guideline">
+        <FoundationBasics basics={topic.basics} />
+        <GuidelineSteps steps={topic.stepByStep} />
+      </section>
+
+      <ProductFlowList
+        title="Product flows that prove this concept"
+        flows={topic.productFlows}
+        onOpenSource={openSource}
+      />
 
       <section className="topic-lecture-layout" aria-label="Lecture plan and project hooks">
         <article className="topic-detail-card">
@@ -1222,6 +1245,7 @@ function ProjectBrief({ activeTabId, onChangeTab, onOpenSource }) {
           </ol>
         )}
       </div>
+      <ProductConceptMatrix items={projectBrief.productConceptMap} onOpenSource={onOpenSource} />
     </section>
   )
 }
@@ -1298,6 +1322,16 @@ function KnowledgeDetail({ topic, onOpenTopic, onOpenSessionDetail, onOpenSource
         </article>
       </div>
 
+      <div className="knowledge-guideline-row">
+        <GuidelineSteps steps={topic.stepByStep.slice(0, 5)} compact />
+        <ProductFlowList
+          title="Applied product flows"
+          flows={topic.productFlows}
+          onOpenSource={onOpenSource}
+          compact
+        />
+      </div>
+
       <div className="related-sessions">
         <strong>Related roadmap sessions</strong>
         <div>
@@ -1364,7 +1398,88 @@ function TopicModule({ topic }) {
         <LearningChart chart={topic.chart} />
         <TopicList title="Project hooks" items={topic.demo.projectHooks} />
       </div>
+      <ProductFlowList title="Product flow mapping" flows={topic.productFlows} compact />
     </article>
+  )
+}
+
+function FoundationBasics({ basics }) {
+  return (
+    <article className="foundation-card">
+      <p className="eyebrow">Foundation basics</p>
+      <h3>Terms freshers must explain before touching code</h3>
+      <div className="basic-term-grid">
+        {basics.map(item => (
+          <section key={item.term}>
+            <strong>{item.term}</strong>
+            <p>{item.definition}</p>
+            <small>{item.guideline}</small>
+          </section>
+        ))}
+      </div>
+    </article>
+  )
+}
+
+function GuidelineSteps({ steps, compact = false }) {
+  return (
+    <article className={`guideline-card ${compact ? 'compact' : ''}`}>
+      <p className="eyebrow">Step-by-step guideline</p>
+      <h3>How the mentor should teach it</h3>
+      <ol>
+        {steps.map(step => <li key={step}>{step}</li>)}
+      </ol>
+    </article>
+  )
+}
+
+function ProductFlowList({ title, flows, onOpenSource, compact = false }) {
+  return (
+    <section className={`product-flow-list ${compact ? 'compact' : ''}`} aria-label={title}>
+      <div className="section-heading">
+        <p className="eyebrow">Product concept map</p>
+        <h3>{title}</h3>
+      </div>
+      <div className="product-flow-grid">
+        {flows.map(flow => (
+          <article key={`${flow.feature}-${flow.flow}`}>
+            <header>
+              <strong>{flow.feature}</strong>
+              <code>{flow.flow}</code>
+            </header>
+            <p>{flow.concept}</p>
+            <small>{flow.evidence}</small>
+            {onOpenSource ? <SourceReferenceList items={flow.files} onOpenSource={onOpenSource} compact /> : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function ProductConceptMatrix({ items, onOpenSource }) {
+  return (
+    <section className="project-concept-matrix" aria-label="Project feature to engineering concept matrix">
+      <div className="section-heading">
+        <p className="eyebrow">Product concept map</p>
+        <h4>Feature, flow, evidence, and source coverage</h4>
+      </div>
+      <div className="concept-matrix-grid">
+        {items.map(item => (
+          <article key={item.feature}>
+            <header>
+              <strong>{item.feature}</strong>
+              <code>{item.flow}</code>
+            </header>
+            <p>{item.concepts.join(' · ')}</p>
+            <ul>
+              {item.evidence.map(evidence => <li key={evidence}>{evidence}</li>)}
+            </ul>
+            <SourceReferenceList items={item.files} onOpenSource={onOpenSource} compact />
+          </article>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -1536,6 +1651,7 @@ function TraceView({ trace }) {
                 <span className="intent-badge">{detail.category}</span>
                 {detail.orderId ? <small>order {detail.orderId}</small> : null}
                 {detail.status ? <small>{detail.status}</small> : null}
+                {detail.supportCategory ? <small>{detail.supportCategory}</small> : null}
               </div>
             ) : null}
             <code>{item.requestId} / {item.messageId}</code>

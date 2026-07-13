@@ -55,20 +55,39 @@ class WorkflowExecutionEngineTest {
     }
 
     @Test
-    void runsStatusUpdateAndKeepsTheConversationOpenForTicketFollowUp() {
+    void runsStatusUpdateAndKeepsTheConversationOpenForCategoryFollowUp() {
         WorkflowExecutionOutcome outcome = engine.execute(workflow(), "offer_update", "update A123", (actionName, input) ->
                 new ActionResult(
                         true,
-                        "Update: order A123 moved from PACKING to SHIPPING. Do you want me to create a follow-up ticket?",
+                        "Update: order A123 moved from PACKING to SHIPPING. What follow-up category should I file?",
                         "{\"category\":\"ORDER_STATUS_UPDATE\",\"orderId\":\"A123\",\"status\":\"SHIPPING\"}"
                 )
         );
 
-        assertThat(outcome.nodeId()).isEqualTo("offer_ticket");
+        assertThat(outcome.nodeId()).isEqualTo("ask_followup_category");
         assertThat(outcome.eventType()).isEqualTo("ACTION_EXECUTED");
         assertThat(outcome.response()).contains("moved from PACKING to SHIPPING");
+        assertThat(outcome.response()).contains("follow-up category");
         assertThat(outcome.detailJson()).contains("\"category\":\"ORDER_STATUS_UPDATE\"");
         assertThat(outcome.sessionStatus()).isEqualTo(SessionStatus.ACTIVE);
+    }
+
+    @Test
+    void routesSupportCategoryToTicketCreationAndCompletesTheSession() {
+        WorkflowExecutionOutcome outcome = engine.execute(workflow(), "ask_followup_category", "delivery delay", (actionName, input) ->
+                new ActionResult(
+                        true,
+                        "Ticket TCK-1001 was created for order A123 with category DELIVERY_DELAY.",
+                        "{\"category\":\"TICKET_CREATION\",\"orderId\":\"A123\",\"supportCategory\":\"DELIVERY_DELAY\"}"
+                )
+        );
+
+        assertThat(outcome.nodeId()).isEqualTo("end");
+        assertThat(outcome.eventType()).isEqualTo("ACTION_EXECUTED");
+        assertThat(outcome.response()).contains("Ticket TCK-1001");
+        assertThat(outcome.response()).contains("DELIVERY_DELAY");
+        assertThat(outcome.detailJson()).contains("\"supportCategory\":\"DELIVERY_DELAY\"");
+        assertThat(outcome.sessionStatus()).isEqualTo(SessionStatus.COMPLETED);
     }
 
     @Test
@@ -105,9 +124,9 @@ class WorkflowExecutionEngineTest {
                                 "category", "FOLLOW_UP"
                         )),
                         new WorkflowDefinition.Node("update_status", WorkflowNodeType.ACTION, Map.of("action", "ORDER_STATUS_UPDATE")),
-                        new WorkflowDefinition.Node("offer_ticket", WorkflowNodeType.QUESTION, Map.of(
-                                "message", "Do you want me to create a follow-up ticket?",
-                                "category", "TICKET_OFFER"
+                        new WorkflowDefinition.Node("ask_followup_category", WorkflowNodeType.QUESTION, Map.of(
+                                "message", "I updated the order status. What follow-up category should I file: delivery delay, address change, refund, agent, or done?",
+                                "category", "FOLLOW_UP_CATEGORY"
                         )),
                         new WorkflowDefinition.Node("ticket", WorkflowNodeType.ACTION, Map.of("action", "TICKET_CREATION")),
                         new WorkflowDefinition.Node("handoff", WorkflowNodeType.HANDOFF, Map.of("message", "I will route this conversation to a support specialist.")),
@@ -130,10 +149,13 @@ class WorkflowExecutionEngineTest {
                         new WorkflowDefinition.Edge("offer_update", "ticket", WorkflowMatchType.KEYWORD, "ticket"),
                         new WorkflowDefinition.Edge("offer_update", "end", WorkflowMatchType.KEYWORD, "done"),
                         new WorkflowDefinition.Edge("offer_update", "offer_update", WorkflowMatchType.FALLBACK, ""),
-                        new WorkflowDefinition.Edge("update_status", "offer_ticket", WorkflowMatchType.ALWAYS, ""),
-                        new WorkflowDefinition.Edge("offer_ticket", "ticket", WorkflowMatchType.OPTION, "yes"),
-                        new WorkflowDefinition.Edge("offer_ticket", "end", WorkflowMatchType.OPTION, "no"),
-                        new WorkflowDefinition.Edge("offer_ticket", "offer_ticket", WorkflowMatchType.FALLBACK, ""),
+                        new WorkflowDefinition.Edge("update_status", "ask_followup_category", WorkflowMatchType.ALWAYS, ""),
+                        new WorkflowDefinition.Edge("ask_followup_category", "ticket", WorkflowMatchType.KEYWORD, "delivery"),
+                        new WorkflowDefinition.Edge("ask_followup_category", "ticket", WorkflowMatchType.KEYWORD, "address"),
+                        new WorkflowDefinition.Edge("ask_followup_category", "ticket", WorkflowMatchType.KEYWORD, "refund"),
+                        new WorkflowDefinition.Edge("ask_followup_category", "handoff", WorkflowMatchType.KEYWORD, "agent"),
+                        new WorkflowDefinition.Edge("ask_followup_category", "end", WorkflowMatchType.KEYWORD, "done"),
+                        new WorkflowDefinition.Edge("ask_followup_category", "ask_followup_category", WorkflowMatchType.FALLBACK, ""),
                         new WorkflowDefinition.Edge("ticket", "end", WorkflowMatchType.ALWAYS, ""),
                         new WorkflowDefinition.Edge("handoff", "end", WorkflowMatchType.ALWAYS, "")
                 )

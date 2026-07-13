@@ -24,15 +24,16 @@ public class MockActionAdapter implements ActionAdapter {
         if ("ORDER_STATUS_UPDATE".equalsIgnoreCase(actionName)) {
             return new ActionResult(
                     true,
-                    "Update: order %s moved from PACKING to SHIPPING. Do you want me to create a follow-up ticket?".formatted(orderId),
-                    "{\"category\":\"ORDER_STATUS_UPDATE\",\"orderId\":\"%s\",\"previousStatus\":\"PACKING\",\"status\":\"SHIPPING\",\"nextQuestion\":\"yes|no\"}".formatted(orderId)
+                    "Update: order %s moved from PACKING to SHIPPING. What follow-up category should I file: delivery delay, address change, refund, agent, or done?".formatted(orderId),
+                    "{\"category\":\"ORDER_STATUS_UPDATE\",\"orderId\":\"%s\",\"previousStatus\":\"PACKING\",\"status\":\"SHIPPING\",\"nextQuestion\":\"delivery delay|address change|refund|agent|done\"}".formatted(orderId)
             );
         }
         if ("TICKET_CREATION".equalsIgnoreCase(actionName)) {
+            String supportCategory = supportCategory(input);
             return new ActionResult(
                     true,
-                    "Ticket TCK-1001 was created for order %s. A support specialist can follow up with shipping updates.".formatted(orderId),
-                    "{\"category\":\"TICKET_CREATION\",\"orderId\":\"%s\",\"ticketId\":\"TCK-1001\",\"status\":\"CREATED\"}".formatted(orderId)
+                    "Ticket TCK-1001 was created for order %s with category %s. A support specialist can follow up with the right playbook.".formatted(orderId, supportCategory),
+                    "{\"category\":\"TICKET_CREATION\",\"orderId\":\"%s\",\"ticketId\":\"TCK-1001\",\"supportCategory\":\"%s\",\"status\":\"CREATED\"}".formatted(orderId, supportCategory)
             );
         }
         return new ActionResult(false, "Action khong kha dung.", "{\"error\":\"unknown_action\"}");
@@ -44,5 +45,19 @@ public class MockActionAdapter implements ActionAdapter {
             return matcher.group(1).toUpperCase(Locale.ROOT);
         }
         return "UNKNOWN";
+    }
+
+    private String supportCategory(String input) {
+        String normalized = input == null ? "" : input.toLowerCase(Locale.ROOT);
+        if (normalized.contains("delivery") || normalized.contains("delay") || normalized.contains("shipping")) {
+            return "DELIVERY_DELAY";
+        }
+        if (normalized.contains("address")) {
+            return "ADDRESS_CHANGE";
+        }
+        if (normalized.contains("refund")) {
+            return "REFUND_REQUEST";
+        }
+        return "GENERAL_SUPPORT";
     }
 }

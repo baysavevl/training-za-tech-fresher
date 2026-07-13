@@ -8,3 +8,7 @@ frontend/dist/
 .vscode/
 .tools/
 .mvn/local/
+.playwright-cli/
+.vercel/
+.vercel
+multica/

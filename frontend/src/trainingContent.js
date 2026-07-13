@@ -6,6 +6,58 @@ export const trainingTopics = [
     summary: 'How multiple messages, threads, and shared session state interact in a backend service.',
     definition: 'Concurrency is the ability of a system to make progress on multiple tasks during overlapping time windows. Parallelism is when tasks literally run at the same time on different CPU cores or workers.',
     explanation: 'A conversation system receives messages from many users at once. Different conversations can be processed independently, but messages in the same conversation must update session state in order. Without a clear consistency rule, two messages can both read the same current node and write conflicting next states.',
+    basics: [
+      {
+        term: 'Thread and task',
+        definition: 'A thread is an execution lane owned by the runtime; a task is one unit of work scheduled onto a thread.',
+        guideline: 'Start by naming the task first, such as processing one incoming message, then ask which shared data that task reads or writes.'
+      },
+      {
+        term: 'Critical section',
+        definition: 'A critical section is the smallest block that reads and writes shared mutable state and therefore must not interleave unsafely.',
+        guideline: 'Keep the critical section around idempotency check, session update, history write, and trace write; do not lock unrelated reads.'
+      },
+      {
+        term: 'Consistency boundary',
+        definition: 'The consistency boundary is the business unit that must stay correct when concurrent work overlaps.',
+        guideline: 'For this project the boundary is one conversation session, so same-conversation messages serialize while other conversations can proceed.'
+      },
+      {
+        term: 'Idempotency key',
+        definition: 'An idempotency key identifies a retry of the same external request so the service can return the original result safely.',
+        guideline: 'Use conversation_id plus message_id as the duplicate boundary, then verify response reuse and stable history row count.'
+      }
+    ],
+    stepByStep: [
+      'Identify the shared mutable state first: conversation_sessions.current_node_id, session version, message history, trace rows, and idempotency mapping.',
+      'Choose the smallest consistency boundary: this project serializes by conversation_id rather than locking the whole automation.',
+      'Place duplicate detection inside the protected block so two retries cannot both pass the idempotency check.',
+      'Explain the local lock limitation clearly: it works for one JVM demo, while production needs transaction or distributed coordination.',
+      'Prove the behavior by running the duplicate replay flow and checking responseMessageId plus history length before discussing optimizations.'
+    ],
+    productFlows: [
+      {
+        feature: 'Duplicate replay protection',
+        flow: 'mock message -> idempotency lookup -> reused response',
+        concept: 'Idempotency makes channel retries safe and prevents duplicate session transitions.',
+        evidence: 'Replay duplicate returns duplicate=true and History does not gain two extra rows.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java', 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/MessageIdempotencyRepository.java']
+      },
+      {
+        feature: 'Same conversation serialization',
+        flow: 'conversation_id -> withConversationLock -> processLocked',
+        concept: 'The conversation is the consistency boundary for mutable session state.',
+        evidence: 'The lock wraps idempotency, workflow execution, session update, history, and trace writes.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/mockchat/ConversationLockManager.java', 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java']
+      },
+      {
+        feature: 'Session version progression',
+        flow: 'START -> menu -> ask_order_id -> offer_update -> ask_followup_category -> end',
+        concept: 'A stateful conversation advances one version per processed user message.',
+        evidence: 'Session version reaches 5 after the five-message auto demo and current_node_id ends at end.',
+        files: ['conversation-app/src/main/resources/schema.sql', 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/ConversationSessionRepository.java']
+      }
+    ],
     example: {
       title: 'Two messages hit the same conversation',
       steps: [
@@ -65,6 +117,58 @@ export const trainingTopics = [
     summary: 'How contracts define the boundary between chat clients, REST APIs, and internal services.',
     definition: 'Client/server design separates the caller that requests a capability from the service that owns the data and behavior. RPC is a contract style where a client calls a named remote procedure through generated or agreed request/response types.',
     explanation: 'The mock chat client should not know workflow internals. It sends an incoming message to a stable API. The Automation Service owns validation, session state, and workflow execution. RPC becomes useful for typed internal calls such as intent classification, where protobuf defines a schema and generated stubs reduce contract drift.',
+    basics: [
+      {
+        term: 'Client responsibility',
+        definition: 'The client collects user input, sends a valid request, and renders the service response without owning backend state.',
+        guideline: 'Map every UI input to the REST request before reading service internals; this prevents accidental coupling to tables or node logic.'
+      },
+      {
+        term: 'Service responsibility',
+        definition: 'The service validates the request, owns business rules, persists state, and returns a stable response contract.',
+        guideline: 'Ask freshers which behavior must remain correct if React is replaced by a Zalo webhook client.'
+      },
+      {
+        term: 'REST contract',
+        definition: 'A REST contract is the documented HTTP method, path, headers, request body, response body, and error shape.',
+        guideline: 'Review request_id, message_id, automationId, and validation errors before discussing controller implementation.'
+      },
+      {
+        term: 'Adapter boundary',
+        definition: 'An adapter converts external payload shape into an internal model that business services can consume consistently.',
+        guideline: 'Treat MockChatChannelAdapter as the place where channel-specific fields stop and InboundChatMessage begins.'
+      }
+    ],
+    stepByStep: [
+      'Start with a concrete product action: a user sends a message from Mock Chat and expects one bot response.',
+      'Write the API contract as method, path, header, request fields, response fields, validation errors, and ownership notes.',
+      'Draw the boundary from React UI to MockChatController to MockChatChannelAdapter to MockChatService.',
+      'Compare REST for external channel traffic with RPC/protobuf for typed internal intent-service style calls.',
+      'Review compatibility rules: adding optional response fields is safer than renaming request fields used by clients.'
+    ],
+    productFlows: [
+      {
+        feature: 'Incoming message API',
+        flow: 'React form -> POST /api/mock-chat/messages -> MockChatController',
+        concept: 'The REST boundary hides workflow internals behind a stable request/response model.',
+        evidence: 'The UI sends userId, conversationId, messageId, automationId, text, and X-Request-Id.',
+        files: ['docs/api/api-contract.md', 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java']
+      },
+      {
+        feature: 'Channel normalization',
+        flow: 'MockIncomingMessageRequest -> MockChatChannelAdapter -> InboundChatMessage',
+        concept: 'Adapter design lets a future Zalo webhook reuse the same automation service.',
+        evidence: 'MockChatService consumes InboundChatMessage and does not depend on controller DTO fields.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatChannelAdapter.java', 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java']
+      },
+      {
+        feature: 'Workflow publish contract',
+        flow: 'Create automation -> save workflow draft -> publish workflow version',
+        concept: 'Configuration APIs define a lifecycle boundary before runtime execution can use a workflow.',
+        evidence: 'Publish returns status=PUBLISHED and activeWorkflowVersionId points to the validated version.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/api/AutomationController.java', 'conversation-app/src/main/java/com/zalo/training/conversation/application/AutomationService.java']
+      }
+    ],
     example: {
       title: 'Mock Chat calls Automation Service',
       steps: [
@@ -125,6 +229,58 @@ export const trainingTopics = [
     summary: 'How test levels protect workflow logic, API behavior, and mentoring exercises.',
     definition: 'Testing engineering is the practice of designing code and verification strategy so important behavior can be checked quickly, repeatedly, and at the right level of isolation.',
     explanation: 'Workflow routing is pure domain logic and should be tested without Spring or a database. API behavior needs integration tests because validation, JSON binding, and persistence interact. A good training project shows both levels so freshers learn when a unit test is enough and when a full flow test is required.',
+    basics: [
+      {
+        term: 'Unit test',
+        definition: 'A unit test verifies a small behavior without expensive framework, database, or network boundaries.',
+        guideline: 'Use unit tests for WorkflowExecutionEngine and WorkflowValidator because their inputs and outputs are plain domain objects.'
+      },
+      {
+        term: 'Integration test',
+        definition: 'An integration test verifies multiple real boundaries working together, such as HTTP, JSON binding, service orchestration, and persistence.',
+        guideline: 'Use MockChatFlowTest for the main product flow because session, history, trace, and idempotency must agree.'
+      },
+      {
+        term: 'Regression test',
+        definition: 'A regression test locks behavior that previously failed or could easily break during future changes.',
+        guideline: 'Write the fallback, duplicate replay, and categorized ticket assertions before changing workflow or adapter behavior.'
+      },
+      {
+        term: 'Test seam',
+        definition: 'A test seam is a boundary where code can be exercised or substituted without invoking unrelated systems.',
+        guideline: 'Keep ActionAdapter as the seam between deterministic engine tests and external action behavior.'
+      }
+    ],
+    stepByStep: [
+      'Name the behavior in product language first, such as category follow-up creates a categorized ticket.',
+      'Choose the cheapest reliable test level: engine routing in unit tests, full API flow in MockMvc integration tests.',
+      'Run the test before implementation and confirm it fails for the expected missing behavior, not because of a typo.',
+      'Implement the smallest production change that makes the test pass, then run the focused test again.',
+      'Add one UI/content test when a training promise appears on screen so the mentoring material cannot silently drift.'
+    ],
+    productFlows: [
+      {
+        feature: 'Workflow routing unit tests',
+        flow: 'current_node_id + input -> WorkflowExecutionEngine -> outcome',
+        concept: 'Pure domain behavior should be verified without Spring or database setup.',
+        evidence: 'WorkflowExecutionEngineTest covers menu, order id, action, category follow-up, fallback, and completion.',
+        files: ['conversation-app/src/test/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngineTest.java', 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngine.java']
+      },
+      {
+        feature: 'End-to-end mock chat test',
+        flow: 'POST messages x5 -> session/history/trace APIs -> duplicate replay',
+        concept: 'Integration tests prove contracts, orchestration, persistence, and observability agree.',
+        evidence: 'MockChatFlowTest asserts intents, supportCategory trace detail, session version, and duplicate response reuse.',
+        files: ['conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java']
+      },
+      {
+        feature: 'Training content tests',
+        flow: 'trainingContent.js -> node test -> rendered learning guarantees',
+        concept: 'Documentation and mentoring UI are product behavior and need regression checks too.',
+        evidence: 'trainingContent.test.mjs requires basics, guidelines, product flows, project brief coverage, and concept maps.',
+        files: ['frontend/src/trainingContent.test.mjs', 'frontend/src/trainingContent.js']
+      }
+    ],
     example: {
       title: 'Fallback route regression',
       steps: [
@@ -184,6 +340,58 @@ export const trainingTopics = [
     summary: 'How logs, traces, and metrics make workflow execution debuggable.',
     definition: 'Observability is the ability to understand what a system is doing from its emitted signals: structured logs, metrics, traces, and durable debug records.',
     explanation: 'In a workflow system, a generic success log is not enough. A mentor should teach freshers to include request_id, message_id, conversation_id, session_id, and node_id so a production issue can be reconstructed from the user message to the exact workflow node that handled it.',
+    basics: [
+      {
+        term: 'Structured log',
+        definition: 'A structured log is a machine-searchable event with named fields rather than a free-form sentence.',
+        guideline: 'Require request_id, message_id, conversation_id, session_id, node_id, and status in the main processed-message log.'
+      },
+      {
+        term: 'Trace row',
+        definition: 'A trace row records one durable execution event so engineers can reconstruct a workflow path after the request is gone.',
+        guideline: 'Persist node_id, event_type, request_id, message_id, and detail_json for every processed message.'
+      },
+      {
+        term: 'Metric',
+        definition: 'A metric is an aggregated numeric signal used to answer how often, how slow, or how many failures occur.',
+        guideline: 'Use Actuator metrics as the entry point, then ask freshers to design action latency and failure counters.'
+      },
+      {
+        term: 'Correlation ID',
+        definition: 'A correlation ID is an identifier that connects logs, responses, history rows, traces, and external action evidence.',
+        guideline: 'Teach debugging by copying one request_id from the UI and finding it in every available signal.'
+      }
+    ],
+    stepByStep: [
+      'Start with a user complaint and ask what identifiers are available before opening any code.',
+      'Read History to find customer input, bot output, intent, message_id, and request_id.',
+      'Read Session to identify current_node_id, status, workflow version, and session version.',
+      'Read Debug Trace to explain which node executed and what detail_json says about category, order, status, or ticket.',
+      'Connect the same identifiers to structured logs and define which metric would reveal this issue at aggregate scale.'
+    ],
+    productFlows: [
+      {
+        feature: 'Debug trace panel',
+        flow: 'message processed -> execution_traces -> /trace API -> React panel',
+        concept: 'Durable trace records let engineers replay the path of one conversation without guessing.',
+        evidence: 'Trace rows show ORDER_STATUS, ORDER_STATUS_UPDATE, and TICKET_CREATION with supportCategory.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java', 'conversation-app/src/main/resources/schema.sql']
+      },
+      {
+        feature: 'Intent and history inspection',
+        flow: 'customer message -> MessageIntent -> messages table -> History panel',
+        concept: 'Categorized customer input makes support automation explainable during review.',
+        evidence: 'History shows GREETING, ORDER_STATUS_REQUEST, ORDER_ID_PROVIDED, STATUS_UPDATE_REQUEST, and SUPPORT_CATEGORY_PROVIDED.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/domain/MessageIntent.java', 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java']
+      },
+      {
+        feature: 'Action execution evidence',
+        flow: 'ACTION node -> MockActionAdapter -> action_executions -> trace detail',
+        concept: 'External side effects need searchable evidence for retries, audits, and incident analysis.',
+        evidence: 'action_executions stores request_json, response_json, attempt_count, status, and related trace id.',
+        files: ['conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java', 'conversation-app/src/main/resources/schema.sql']
+      }
+    ],
     example: {
       title: 'Debug a wrong bot response',
       steps: [
@@ -242,6 +450,56 @@ export const trainingTopics = [
 export const projectBrief = {
   title: 'Conversation Automation System',
   subtitle: 'A runnable Java backend and React console used to train freshers on backend engineering fundamentals.',
+  productConceptMap: [
+    {
+      feature: 'Auto demo bootstrap',
+      flow: 'Run auto demo -> create automation -> publish workflow',
+      conceptIds: ['rpc', 'te'],
+      concepts: ['REST contract', 'workflow publish boundary', 'configuration lifecycle'],
+      evidence: ['Automation id is created', 'Workflow version is published before any message is sent'],
+      files: ['frontend/src/main.jsx', 'conversation-app/src/main/java/com/zalo/training/conversation/api/AutomationController.java']
+    },
+    {
+      feature: 'Conversation entry prompt',
+      flow: 'START -> menu',
+      conceptIds: ['rpc', 'te', 'ob'],
+      concepts: ['client/server input contract', 'state-machine entry', 'first trace row'],
+      evidence: ['History intent=GREETING', 'Session current_node_id=menu'],
+      files: ['frontend/src/demoState.js', 'conversation-app/src/main/java/com/zalo/training/conversation/workflow/WorkflowExecutionEngine.java']
+    },
+    {
+      feature: 'Order intent follow-up',
+      flow: 'menu -> ask_order_id',
+      conceptIds: ['te', 'ob'],
+      concepts: ['edge matching', 'multi-turn session state', 'intent categorization'],
+      evidence: ['Bot asks for A123 instead of calling action too early', 'History intent=ORDER_STATUS_REQUEST'],
+      files: ['frontend/src/demoState.js', 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java']
+    },
+    {
+      feature: 'Order lookup action',
+      flow: 'ask_order_id -> lookup -> offer_update',
+      conceptIds: ['rpc', 'te', 'ob'],
+      concepts: ['CONDITION validation', 'ActionAdapter boundary', 'action execution evidence'],
+      evidence: ['Trace detail category=ORDER_STATUS', 'action_executions stores the mock external response'],
+      files: ['conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java', 'conversation-app/src/main/resources/schema.sql']
+    },
+    {
+      feature: 'Proactive status update',
+      flow: 'offer_update -> update_status -> ask_followup_category',
+      conceptIds: ['te', 'ob'],
+      concepts: ['automated follow-up', 'next best question', 'traceable side effect'],
+      evidence: ['Bot changes PACKING to SHIPPING', 'Session remains ACTIVE for the category question'],
+      files: ['frontend/src/demoState.js', 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java']
+    },
+    {
+      feature: 'Categorized ticket creation',
+      flow: 'ask_followup_category -> ticket -> end',
+      conceptIds: ['pc', 'te', 'ob'],
+      concepts: ['categorized user information', 'terminal state', 'idempotent duplicate replay'],
+      evidence: ['Trace detail supportCategory=DELIVERY_DELAY', 'Session status=COMPLETED', 'Duplicate replay keeps history stable'],
+      files: ['conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java', 'conversation-app/src/main/java/com/zalo/training/conversation/domain/MessageIntent.java']
+    }
+  ],
   tabs: [
     {
       id: 'description',

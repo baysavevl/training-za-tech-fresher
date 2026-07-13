@@ -920,6 +920,99 @@ label {
   line-height: 1.35;
 }
 
+.script-step em {
+  background: #ffffff;
+  border: 1px solid #d2e3fc;
+  border-radius: 8px;
+  color: var(--blue);
+  font-family: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-style: normal;
+  overflow-wrap: anywhere;
+  padding: 5px 7px;
+}
+
+.automation-concept-map {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+.automation-concept-map h4,
+.project-concept-matrix h4 {
+  font-size: 18px;
+  margin: 3px 0 0;
+}
+
+.concept-map-grid,
+.concept-matrix-grid,
+.product-flow-grid,
+.basic-term-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.concept-map-grid article,
+.concept-matrix-grid article,
+.product-flow-grid article,
+.basic-term-grid section {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.concept-map-grid header,
+.concept-matrix-grid header,
+.product-flow-grid header {
+  display: grid;
+  gap: 6px;
+}
+
+.concept-map-grid strong,
+.concept-matrix-grid strong,
+.product-flow-grid strong,
+.basic-term-grid strong {
+  font-size: 14px;
+}
+
+.concept-map-grid code,
+.concept-matrix-grid code,
+.product-flow-grid code {
+  background: #ffffff;
+  border: 1px solid #d2e3fc;
+  border-radius: 8px;
+  color: var(--blue);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  padding: 7px;
+}
+
+.concept-map-grid p,
+.concept-map-grid li,
+.concept-matrix-grid p,
+.concept-matrix-grid li,
+.product-flow-grid p,
+.product-flow-grid small,
+.basic-term-grid p,
+.basic-term-grid small,
+.guideline-card li {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.concept-map-grid ul,
+.concept-matrix-grid ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .demo-step {
   align-items: center;
   background: #f8fafd;
@@ -1043,7 +1136,11 @@ label {
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid #d2e3fc;
   border-radius: 8px;
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 7px;
+  white-space: normal;
 }
 
 .source-list {
@@ -1070,7 +1167,14 @@ label {
 .source-actions button {
   font-size: 12px;
   min-height: 32px;
+  min-width: 0;
   padding: 6px 9px;
+  white-space: normal;
+}
+
+.source-actions button,
+.source-actions button span {
+  overflow-wrap: anywhere;
 }
 
 .source-viewer {
@@ -1282,6 +1386,67 @@ label {
   gap: 14px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-bottom: 16px;
+}
+
+.concept-foundation-layout,
+.knowledge-guideline-row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  margin-bottom: 16px;
+}
+
+.foundation-card,
+.guideline-card,
+.product-flow-list,
+.project-concept-matrix {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.guideline-card {
+  align-content: start;
+}
+
+.guideline-card.compact {
+  box-shadow: none;
+}
+
+.foundation-card h3,
+.guideline-card h3,
+.product-flow-list h3 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.guideline-card ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.product-flow-list {
+  margin-bottom: 16px;
+}
+
+.product-flow-list.compact {
+  box-shadow: none;
+  margin: 0;
+}
+
+.product-flow-list.compact .product-flow-grid {
+  grid-template-columns: 1fr;
+}
+
+.project-concept-matrix {
+  box-shadow: none;
 }
 
 .topic-lecture-layout {
@@ -1932,6 +2097,12 @@ code {
   .brief-heading,
   .brief-group-grid,
   .brief-checklist,
+  .concept-map-grid,
+  .concept-matrix-grid,
+  .product-flow-grid,
+  .basic-term-grid,
+  .concept-foundation-layout,
+  .knowledge-guideline-row,
   .topic-detail-hero,
   .topic-indicator-grid,
   .topic-detail-grid,
@@ -1955,7 +2126,11 @@ code {
   .entry-grid,
   .study-grid,
   .demo-progress,
-  .script-preview {
+  .script-preview,
+  .concept-map-grid,
+  .concept-matrix-grid,
+  .product-flow-grid,
+  .basic-term-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2043,7 +2218,11 @@ code {
   .entry-grid,
   .study-grid,
   .demo-progress,
-  .script-preview {
+  .script-preview,
+  .concept-map-grid,
+  .concept-matrix-grid,
+  .product-flow-grid,
+  .basic-term-grid {
     grid-template-columns: 1fr;
   }
 

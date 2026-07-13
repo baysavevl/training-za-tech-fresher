@@ -1,4 +1,4 @@
-export const DEMO_STATE_VERSION = '2026-07-13-multi-turn-demo-v3'
+export const DEMO_STATE_VERSION = '2026-07-13-category-demo-v4'
 
 export const SAMPLE_WORKFLOW = {
   nodes: [
@@ -38,11 +38,11 @@ export const SAMPLE_WORKFLOW = {
     },
     { id: 'update_status', type: 'ACTION', config: { action: 'ORDER_STATUS_UPDATE' } },
     {
-      id: 'offer_ticket',
+      id: 'ask_followup_category',
       type: 'QUESTION',
       config: {
-        message: 'Do you want me to create a follow-up ticket?',
-        category: 'TICKET_OFFER'
+        message: 'I updated the order status. What follow-up category should I file: delivery delay, address change, refund, agent, or done?',
+        category: 'FOLLOW_UP_CATEGORY'
       }
     },
     { id: 'ticket', type: 'ACTION', config: { action: 'TICKET_CREATION' } },
@@ -66,10 +66,13 @@ export const SAMPLE_WORKFLOW = {
     { from: 'offer_update', to: 'ticket', matchType: 'KEYWORD', matchValue: 'ticket' },
     { from: 'offer_update', to: 'end', matchType: 'KEYWORD', matchValue: 'done' },
     { from: 'offer_update', to: 'offer_update', matchType: 'FALLBACK', matchValue: '' },
-    { from: 'update_status', to: 'offer_ticket', matchType: 'ALWAYS', matchValue: '' },
-    { from: 'offer_ticket', to: 'ticket', matchType: 'OPTION', matchValue: 'yes' },
-    { from: 'offer_ticket', to: 'end', matchType: 'OPTION', matchValue: 'no' },
-    { from: 'offer_ticket', to: 'offer_ticket', matchType: 'FALLBACK', matchValue: '' },
+    { from: 'update_status', to: 'ask_followup_category', matchType: 'ALWAYS', matchValue: '' },
+    { from: 'ask_followup_category', to: 'ticket', matchType: 'KEYWORD', matchValue: 'delivery' },
+    { from: 'ask_followup_category', to: 'ticket', matchType: 'KEYWORD', matchValue: 'address' },
+    { from: 'ask_followup_category', to: 'ticket', matchType: 'KEYWORD', matchValue: 'refund' },
+    { from: 'ask_followup_category', to: 'handoff', matchType: 'KEYWORD', matchValue: 'agent' },
+    { from: 'ask_followup_category', to: 'end', matchType: 'KEYWORD', matchValue: 'done' },
+    { from: 'ask_followup_category', to: 'ask_followup_category', matchType: 'FALLBACK', matchValue: '' },
     { from: 'ticket', to: 'end', matchType: 'ALWAYS', matchValue: '' },
     { from: 'handoff', to: 'end', matchType: 'ALWAYS', matchValue: '' }
   ]
@@ -100,11 +103,61 @@ export function createAutoDemoMessageFields(seed = Date.now()) {
 export function createAutoDemoScript(seed = Date.now()) {
   const suffix = Number(seed).toString(36)
   return [
-    { text: 'hello', messageId: `msg-auto-${suffix}-01`, requestId: `request-auto-${suffix}-01`, expect: 'Menu prompt' },
-    { text: 'order', messageId: `msg-auto-${suffix}-02`, requestId: `request-auto-${suffix}-02`, expect: 'Order id follow-up' },
-    { text: 'A123', messageId: `msg-auto-${suffix}-03`, requestId: `request-auto-${suffix}-03`, expect: 'Order status lookup' },
-    { text: 'update', messageId: `msg-auto-${suffix}-04`, requestId: `request-auto-${suffix}-04`, expect: 'Proactive status update' },
-    { text: 'yes', messageId: `msg-auto-${suffix}-05`, requestId: `request-auto-${suffix}-05`, expect: 'Ticket follow-up' }
+    {
+      text: 'hello',
+      messageId: `msg-auto-${suffix}-01`,
+      requestId: `request-auto-${suffix}-01`,
+      expect: 'Menu prompt',
+      feature: 'Conversation entry and channel contract',
+      flow: 'START -> menu',
+      engineeringConcept: 'Client/server boundary and state-machine entry are separated from business actions.',
+      evidence: 'Trace node_id=menu, customer intent=GREETING, no action execution yet.',
+      conceptIds: ['rpc', 'te', 'ob']
+    },
+    {
+      text: 'order',
+      messageId: `msg-auto-${suffix}-02`,
+      requestId: `request-auto-${suffix}-02`,
+      expect: 'Order id follow-up',
+      feature: 'Intent routing and follow-up question',
+      flow: 'menu -> ask_order_id',
+      engineeringConcept: 'Workflow edge matching converts user intent into the next state without calling external services.',
+      evidence: 'Session current_node_id moves to ask_order_id and intent=ORDER_STATUS_REQUEST.',
+      conceptIds: ['te', 'ob']
+    },
+    {
+      text: 'A123',
+      messageId: `msg-auto-${suffix}-03`,
+      requestId: `request-auto-${suffix}-03`,
+      expect: 'Order status lookup',
+      feature: 'Order lookup action adapter',
+      flow: 'ask_order_id -> lookup -> offer_update',
+      engineeringConcept: 'CONDITION matching validates the order code before ACTION calls the mock external adapter.',
+      evidence: 'Trace detail category=ORDER_STATUS, action_executions stores the mock adapter response.',
+      conceptIds: ['rpc', 'te', 'ob']
+    },
+    {
+      text: 'update',
+      messageId: `msg-auto-${suffix}-04`,
+      requestId: `request-auto-${suffix}-04`,
+      expect: 'Proactive status update',
+      feature: 'Automated status refresh and next best question',
+      flow: 'offer_update -> update_status -> ask_followup_category',
+      engineeringConcept: 'The automation proactively updates order state, then asks the next question needed for case categorization.',
+      evidence: 'Trace detail category=ORDER_STATUS_UPDATE and session remains ACTIVE for the category step.',
+      conceptIds: ['te', 'ob']
+    },
+    {
+      text: 'delivery delay',
+      messageId: `msg-auto-${suffix}-05`,
+      requestId: `request-auto-${suffix}-05`,
+      expect: 'Support category and ticket',
+      feature: 'Categorized ticket creation',
+      flow: 'ask_followup_category -> ticket -> end',
+      engineeringConcept: 'User-provided category drives the ticket action while idempotency protects duplicate delivery.',
+      evidence: 'Trace detail supportCategory=DELIVERY_DELAY, session COMPLETED, duplicate replay keeps history stable.',
+      conceptIds: ['pc', 'ob', 'te']
+    }
   ]
 }
 

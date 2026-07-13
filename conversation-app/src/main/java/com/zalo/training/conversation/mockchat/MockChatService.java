@@ -237,6 +237,13 @@ public class MockChatService {
         if (normalized.contains("update") || normalized.contains("cap nhat")) {
             return MessageIntent.STATUS_UPDATE_REQUEST;
         }
+        if (normalized.contains("delivery")
+                || normalized.contains("delay")
+                || normalized.contains("shipping")
+                || normalized.contains("address")
+                || normalized.contains("refund")) {
+            return MessageIntent.SUPPORT_CATEGORY_PROVIDED;
+        }
         if (ORDER_ID_PATTERN.matcher(normalized).find()) {
             return MessageIntent.ORDER_ID_PROVIDED;
         }

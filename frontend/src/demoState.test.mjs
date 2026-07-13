@@ -57,11 +57,11 @@ test('sample workflow models the multi-turn order follow-up automation', () => {
   assert.equal(nodeIds.has('ask_order_id'), true)
   assert.equal(nodeIds.has('offer_update'), true)
   assert.equal(nodeIds.has('update_status'), true)
-  assert.equal(nodeIds.has('offer_ticket'), true)
+  assert.equal(nodeIds.has('ask_followup_category'), true)
   assert.equal(nodeIds.has('ticket'), true)
   assert.equal(edgeKeys.has('ask_order_id->lookup:CONDITION:[a-z][0-9]{3}'), true)
-  assert.equal(edgeKeys.has('update_status->offer_ticket:ALWAYS:'), true)
-  assert.equal(edgeKeys.has('offer_ticket->ticket:OPTION:yes'), true)
+  assert.equal(edgeKeys.has('update_status->ask_followup_category:ALWAYS:'), true)
+  assert.equal(edgeKeys.has('ask_followup_category->ticket:KEYWORD:delivery'), true)
 })
 
 test('auto demo message fields start a fresh non-duplicate conversation', () => {
@@ -75,7 +75,7 @@ test('auto demo message fields start a fresh non-duplicate conversation', () => 
 test('auto demo script sends a deterministic multi-message conversation', () => {
   const script = createAutoDemoScript(123456)
 
-  assert.deepEqual(script.map((step) => step.text), ['hello', 'order', 'A123', 'update', 'yes'])
+  assert.deepEqual(script.map((step) => step.text), ['hello', 'order', 'A123', 'update', 'delivery delay'])
   assert.deepEqual(script.map((step) => step.messageId), [
     'msg-auto-2n9c-01',
     'msg-auto-2n9c-02',
@@ -88,8 +88,22 @@ test('auto demo script sends a deterministic multi-message conversation', () => 
     'Order id follow-up',
     'Order status lookup',
     'Proactive status update',
-    'Ticket follow-up'
+    'Support category and ticket'
   ])
+})
+
+test('auto demo script explains which engineering concept each product step proves', () => {
+  const script = createAutoDemoScript(123456)
+  const coveredConcepts = new Set(script.flatMap((step) => step.conceptIds))
+
+  assert.deepEqual([...coveredConcepts].sort(), ['ob', 'pc', 'rpc', 'te'])
+  for (const step of script) {
+    assert.ok(step.feature.length > 12, `${step.text} should name the product feature`)
+    assert.match(step.flow, /->/, `${step.text} should show the workflow path`)
+    assert.ok(step.engineeringConcept.length > 20, `${step.text} should explain the engineering concept`)
+    assert.ok(step.evidence.length > 20, `${step.text} should show what to inspect`)
+    assert.ok(step.conceptIds.length >= 1, `${step.text} should map to at least one concept`)
+  }
 })
 
 test('workflow operation response does not replace the last chat response', () => {

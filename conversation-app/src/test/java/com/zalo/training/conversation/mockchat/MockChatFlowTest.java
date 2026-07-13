@@ -74,17 +74,19 @@ class MockChatFlowTest {
         sendMessage(conversationId, automationId, "msg-004", "request-flow-004", "update")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value(containsString("moved from PACKING to SHIPPING")))
-                .andExpect(jsonPath("$.currentNodeId").value("offer_ticket"));
+                .andExpect(jsonPath("$.response").value(containsString("follow-up category")))
+                .andExpect(jsonPath("$.currentNodeId").value("ask_followup_category"));
 
-        MvcResult ticketResult = sendMessage(conversationId, automationId, "msg-005", "request-flow-005", "yes")
+        MvcResult ticketResult = sendMessage(conversationId, automationId, "msg-005", "request-flow-005", "delivery delay")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value(containsString("Ticket TCK-1001")))
+                .andExpect(jsonPath("$.response").value(containsString("DELIVERY_DELAY")))
                 .andExpect(jsonPath("$.currentNodeId").value("end"))
                 .andReturn();
 
         String responseMessageId = read(ticketResult, "responseMessageId");
 
-        sendMessage(conversationId, automationId, "msg-005", "request-flow-005-duplicate", "yes")
+        sendMessage(conversationId, automationId, "msg-005", "request-flow-005-duplicate", "delivery delay")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.duplicate").value(true))
                 .andExpect(jsonPath("$.responseMessageId").value(responseMessageId))
@@ -103,14 +105,15 @@ class MockChatFlowTest {
                 .andExpect(jsonPath("$.items[2].intent").value("ORDER_STATUS_REQUEST"))
                 .andExpect(jsonPath("$.items[4].intent").value("ORDER_ID_PROVIDED"))
                 .andExpect(jsonPath("$.items[6].intent").value("STATUS_UPDATE_REQUEST"))
-                .andExpect(jsonPath("$.items[8].intent").value("AFFIRMATION"));
+                .andExpect(jsonPath("$.items[8].intent").value("SUPPORT_CATEGORY_PROVIDED"));
 
         mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/trace", conversationId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(5))
                 .andExpect(jsonPath("$.items[2].detailJson").value(containsString("\"category\":\"ORDER_STATUS\"")))
                 .andExpect(jsonPath("$.items[3].detailJson").value(containsString("\"category\":\"ORDER_STATUS_UPDATE\"")))
-                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"category\":\"TICKET_CREATION\"")));
+                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"category\":\"TICKET_CREATION\"")))
+                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"supportCategory\":\"DELIVERY_DELAY\"")));
     }
 
     private ResultActions sendMessage(
@@ -148,7 +151,7 @@ class MockChatFlowTest {
                       {"id": "lookup", "type": "ACTION", "config": {"action": "ORDER_LOOKUP"}},
                       {"id": "offer_update", "type": "QUESTION", "config": {"message": "Reply update for a proactive status refresh, ticket to create a follow-up, or done.", "category": "FOLLOW_UP"}},
                       {"id": "update_status", "type": "ACTION", "config": {"action": "ORDER_STATUS_UPDATE"}},
-                      {"id": "offer_ticket", "type": "QUESTION", "config": {"message": "Do you want me to create a follow-up ticket?", "category": "TICKET_OFFER"}},
+                      {"id": "ask_followup_category", "type": "QUESTION", "config": {"message": "I updated the order status. What follow-up category should I file: delivery delay, address change, refund, agent, or done?", "category": "FOLLOW_UP_CATEGORY"}},
                       {"id": "ticket", "type": "ACTION", "config": {"action": "TICKET_CREATION"}},
                       {"id": "handoff", "type": "HANDOFF", "config": {"message": "I will route this conversation to a support specialist."}},
                       {"id": "end", "type": "END", "config": {"message": "Done. I have enough information for this case."}}
@@ -170,10 +173,13 @@ class MockChatFlowTest {
                       {"from": "offer_update", "to": "ticket", "matchType": "KEYWORD", "matchValue": "ticket"},
                       {"from": "offer_update", "to": "end", "matchType": "KEYWORD", "matchValue": "done"},
                       {"from": "offer_update", "to": "offer_update", "matchType": "FALLBACK", "matchValue": ""},
-                      {"from": "update_status", "to": "offer_ticket", "matchType": "ALWAYS", "matchValue": ""},
-                      {"from": "offer_ticket", "to": "ticket", "matchType": "OPTION", "matchValue": "yes"},
-                      {"from": "offer_ticket", "to": "end", "matchType": "OPTION", "matchValue": "no"},
-                      {"from": "offer_ticket", "to": "offer_ticket", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "update_status", "to": "ask_followup_category", "matchType": "ALWAYS", "matchValue": ""},
+                      {"from": "ask_followup_category", "to": "ticket", "matchType": "KEYWORD", "matchValue": "delivery"},
+                      {"from": "ask_followup_category", "to": "ticket", "matchType": "KEYWORD", "matchValue": "address"},
+                      {"from": "ask_followup_category", "to": "ticket", "matchType": "KEYWORD", "matchValue": "refund"},
+                      {"from": "ask_followup_category", "to": "handoff", "matchType": "KEYWORD", "matchValue": "agent"},
+                      {"from": "ask_followup_category", "to": "end", "matchType": "KEYWORD", "matchValue": "done"},
+                      {"from": "ask_followup_category", "to": "ask_followup_category", "matchType": "FALLBACK", "matchValue": ""},
                       {"from": "ticket", "to": "end", "matchType": "ALWAYS", "matchValue": ""},
                       {"from": "handoff", "to": "end", "matchType": "ALWAYS", "matchValue": ""}
                     ]

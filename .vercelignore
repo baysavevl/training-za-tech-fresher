@@ -1,0 +1,10 @@
+.git
+.playwright-cli
+conversation-app/target
+frontend/dist
+frontend/node_modules
+intent-contract/target
+intent-service/target
+logs
+multica
+*.log
