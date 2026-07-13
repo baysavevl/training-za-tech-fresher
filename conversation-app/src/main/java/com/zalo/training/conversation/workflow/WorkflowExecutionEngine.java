@@ -6,6 +6,8 @@ import com.zalo.training.conversation.domain.SessionStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Component
 public class WorkflowExecutionEngine {
@@ -29,9 +31,12 @@ public class WorkflowExecutionEngine {
 
         if (current.type() == WorkflowNodeType.START) {
             current = nextNode(workflow, current, input);
+            return enterNode(workflow, current, input, actionAdapter);
         }
 
-        if (current.type() == WorkflowNodeType.QUESTION || current.type() == WorkflowNodeType.CONDITION) {
+        if (current.type() == WorkflowNodeType.MESSAGE
+                || current.type() == WorkflowNodeType.QUESTION
+                || current.type() == WorkflowNodeType.CONDITION) {
             current = nextNode(workflow, current, input);
         }
 
@@ -64,7 +69,7 @@ public class WorkflowExecutionEngine {
             return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.COMPLETED, "END", "{\"status\":\"completed\"}");
         }
         String response = node.configString("message", "");
-        return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.ACTIVE, node.type().name(), "{\"node\":\"%s\"}".formatted(node.id()));
+        return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.ACTIVE, node.type().name(), detailJson(node));
     }
 
     private WorkflowDefinition.Node startNode(WorkflowDefinition workflow) {
@@ -88,8 +93,31 @@ public class WorkflowExecutionEngine {
         String matchValue = edge.matchValue() == null ? "" : edge.matchValue().toLowerCase();
         return switch (edge.matchType()) {
             case ALWAYS, FALLBACK -> true;
-            case KEYWORD, CONDITION -> !matchValue.isBlank() && normalizedInput.contains(matchValue);
+            case KEYWORD -> !matchValue.isBlank() && normalizedInput.contains(matchValue);
+            case CONDITION -> matchesCondition(matchValue, normalizedInput);
             case OPTION -> normalizedInput.equals(matchValue);
         };
+    }
+
+    private boolean matchesCondition(String matchValue, String normalizedInput) {
+        if (matchValue.isBlank()) {
+            return false;
+        }
+        try {
+            return Pattern.compile(matchValue, Pattern.CASE_INSENSITIVE).matcher(normalizedInput).find();
+        } catch (PatternSyntaxException ignored) {
+            return normalizedInput.contains(matchValue);
+        }
+    }
+
+    private String detailJson(WorkflowDefinition.Node node) {
+        return "{\"node\":\"%s\",\"category\":\"%s\"}".formatted(
+                escape(node.id()),
+                escape(node.configString("category", node.type().name()))
+        );
+    }
+
+    private String escape(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

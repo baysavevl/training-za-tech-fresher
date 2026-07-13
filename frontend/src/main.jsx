@@ -21,6 +21,7 @@ import {
   DEMO_STATE_VERSION,
   SAMPLE_WORKFLOW,
   createAutoDemoMessageFields,
+  createAutoDemoScript,
   hydrateDemoState,
   initialDemoState,
   updateOperationResponses
@@ -183,7 +184,7 @@ function Dashboard({ navigate }) {
   async function quickSetup(sendAfterPublish = false) {
     const result = await run(sendAfterPublish ? 'Auto demo completed' : 'Sample workflow published', async () => {
       const definition = JSON.parse(state.workflowJson)
-      const autoMessageFields = sendAfterPublish ? createAutoDemoMessageFields() : null
+      const autoDemoScript = sendAfterPublish ? createAutoDemoScript() : []
       const automation = state.automationId
         ? { id: state.automationId }
         : await request('/api/automations', {
@@ -200,25 +201,35 @@ function Dashboard({ navigate }) {
       if (!sendAfterPublish) {
         return { automation, workflow, published }
       }
-      const message = await request('/api/mock-chat/messages', {
-        method: 'POST',
-        headers: { 'X-Request-Id': autoMessageFields.requestId },
-        body: JSON.stringify({
-          userId: state.userId,
-          conversationId: null,
-          messageId: autoMessageFields.messageId,
-          automationId: automation.id,
-          text: state.text
+      let conversationId = null
+      let message = null
+      for (const step of autoDemoScript) {
+        message = await request('/api/mock-chat/messages', {
+          method: 'POST',
+          headers: { 'X-Request-Id': step.requestId },
+          body: JSON.stringify({
+            userId: state.userId,
+            conversationId,
+            messageId: step.messageId,
+            automationId: automation.id,
+            text: step.text
+          })
         })
-      })
-      return { automation, workflow, published, message, autoMessageFields }
+        conversationId = message.conversationId
+      }
+      return { automation, workflow, published, message, autoDemoScript }
     })
 
     if (result) {
+      const lastStep = result.autoDemoScript?.at(-1)
       patch({
         automationId: result.automation.id,
         workflowVersionId: result.workflow.id,
-        ...(result.autoMessageFields || {}),
+        ...(lastStep ? {
+          messageId: lastStep.messageId,
+          requestId: lastStep.requestId,
+          text: lastStep.text
+        } : {}),
         conversationId: result.message?.conversationId || state.conversationId
       })
       setResponses(current => {
@@ -307,9 +318,9 @@ function Dashboard({ navigate }) {
             <p className="eyebrow">Guided demo</p>
             <h3>Auto demo runs the full product flow.</h3>
             <p>
-              Click Run auto demo once. It creates the automation, saves and publishes the sample
-              workflow, sends a fresh message, and refreshes debug panels. Manual controls below
-              are only for teaching each API call separately.
+              Click Run auto demo once. It creates the automation, publishes the sample workflow,
+              sends a five-message conversation, then refreshes history, trace, and session state.
+              Manual controls below are only for teaching each API call separately.
             </p>
           </div>
           <div className="run-actions">
@@ -321,6 +332,7 @@ function Dashboard({ navigate }) {
             </button>
           </div>
           <DemoProgress idsReady={idsReady} debugReady={history.length > 0 || trace.length > 0} />
+          <DemoScriptPreview />
         </section>
 
         <div className="grid">
@@ -427,12 +439,16 @@ function Dashboard({ navigate }) {
 
 function ConversationState({ chatResponse, idsReady }) {
   let title = 'Start with auto demo'
-  let detail = 'Run auto demo creates the workflow, sends one message, and fills the debug panels.'
+  let detail = 'Run auto demo creates the workflow, sends the five-message script, and fills the debug panels.'
   let tone = 'waiting'
 
   if (chatResponse?.duplicate) {
     title = 'Duplicate replay confirmed'
     detail = 'The same message ID reused the previous response and did not add history rows.'
+    tone = 'done'
+  } else if (chatResponse?.currentNodeId === 'end') {
+    title = 'Automation completed'
+    detail = 'The bot collected the order id, updated status, created a ticket, and ended the session.'
     tone = 'done'
   } else if (chatResponse) {
     title = 'Conversation response ready'
@@ -455,6 +471,20 @@ function ConversationState({ chatResponse, idsReady }) {
   )
 }
 
+function DemoScriptPreview() {
+  return (
+    <div className="script-preview" aria-label="Multi-turn automation script">
+      {createAutoDemoScript(123456).map((step, index) => (
+        <div className="script-step" key={step.messageId}>
+          <span>{String(index + 1).padStart(2, '0')}</span>
+          <strong>{step.text}</strong>
+          <small>{step.expect}</small>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function DemoProgress({ idsReady, debugReady }) {
   const steps = [
     {
@@ -469,7 +499,7 @@ function DemoProgress({ idsReady, debugReady }) {
     },
     {
       label: 'Message',
-      detail: idsReady.conversation ? 'Fresh conversation exists' : 'Auto sends a fresh message',
+      detail: idsReady.conversation ? 'Multi-turn conversation exists' : 'Auto sends five messages',
       active: idsReady.conversation
     },
     {
@@ -1493,17 +1523,35 @@ function TraceView({ trace }) {
   }
   return (
     <div className="trace-list">
-      {trace.map(item => (
-        <div className="trace-item" key={item.id}>
-          <div>
-            <strong>{item.eventType}</strong>
-            <span>{item.nodeId}</span>
+      {trace.map(item => {
+        const detail = parseTraceDetail(item.detailJson)
+        return (
+          <div className="trace-item" key={item.id}>
+            <div>
+              <strong>{item.eventType}</strong>
+              <span>{item.nodeId}</span>
+            </div>
+            {detail.category ? (
+              <div className="trace-meta">
+                <span className="intent-badge">{detail.category}</span>
+                {detail.orderId ? <small>order {detail.orderId}</small> : null}
+                {detail.status ? <small>{detail.status}</small> : null}
+              </div>
+            ) : null}
+            <code>{item.requestId} / {item.messageId}</code>
           </div>
-          <code>{item.requestId} / {item.messageId}</code>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
+}
+
+function parseTraceDetail(detailJson) {
+  try {
+    return JSON.parse(detailJson || '{}')
+  } catch {
+    return {}
+  }
 }
 
 function HistoryView({ history }) {
@@ -1518,6 +1566,7 @@ function HistoryView({ history }) {
             <strong>{message.senderType}</strong>
             <span>{shortId(message.id)}</span>
           </header>
+          {message.intent ? <span className="intent-badge">{message.intent}</span> : null}
           <p>{message.content}</p>
           <code>{message.traceId}</code>
         </article>

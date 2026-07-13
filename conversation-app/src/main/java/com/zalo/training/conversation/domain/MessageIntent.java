@@ -2,7 +2,12 @@ package com.zalo.training.conversation.domain;
 
 public enum MessageIntent {
     ORDER_STATUS_REQUEST,
+    ORDER_ID_PROVIDED,
+    STATUS_UPDATE_REQUEST,
+    TICKET_REQUEST,
     HUMAN_AGENT_REQUEST,
+    AFFIRMATION,
+    NEGATION,
     GREETING,
     UNKNOWN;
 
@@ -10,6 +15,10 @@ public enum MessageIntent {
         if (value == null || value.isBlank()) {
             return UNKNOWN;
         }
-        return MessageIntent.valueOf(value.trim().toUpperCase());
+        try {
+            return MessageIntent.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return UNKNOWN;
+        }
     }
 }

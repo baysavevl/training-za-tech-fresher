@@ -9,8 +9,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,7 +29,7 @@ class MockChatFlowTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void publishesWorkflowProcessesIncomingMessageAndExposesTrace() throws Exception {
+    void publishesWorkflowRunsMultiTurnFollowUpAndCategorizesUserInput() throws Exception {
         String automationId = read(mockMvc.perform(post("/api/automations")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -41,24 +43,7 @@ class MockChatFlowTest {
 
         String workflowVersionId = read(mockMvc.perform(post("/api/automations/{automationId}/workflows", automationId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "definition": {
-                                    "nodes": [
-                                      {"id": "start", "type": "START", "config": {}},
-                                      {"id": "ask", "type": "QUESTION", "config": {"message": "Ban can ho tro gi?"}},
-                                      {"id": "lookup", "type": "ACTION", "config": {"action": "ORDER_LOOKUP"}},
-                                      {"id": "end", "type": "END", "config": {"message": "Da xu ly xong"}}
-                                    ],
-                                    "edges": [
-                                      {"from": "start", "to": "ask", "matchType": "ALWAYS", "matchValue": ""},
-                                      {"from": "ask", "to": "lookup", "matchType": "KEYWORD", "matchValue": "don hang"},
-                                      {"from": "ask", "to": "end", "matchType": "FALLBACK", "matchValue": ""},
-                                      {"from": "lookup", "to": "end", "matchType": "ALWAYS", "matchValue": ""}
-                                    ]
-                                  }
-                                }
-                                """))
+                        .content(multiTurnWorkflowRequest()))
                 .andExpect(status().isCreated())
                 .andReturn(), "id");
 
@@ -66,52 +51,135 @@ class MockChatFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PUBLISHED"));
 
-        MvcResult chatResult = mockMvc.perform(post("/api/mock-chat/messages")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Request-Id", "request-flow-test")
-                        .content("""
-                                {
-                                  "userId": "mock-user-001",
-                                  "messageId": "msg-001",
-                                  "automationId": "%s",
-                                  "text": "toi muon xem don hang A123"
-                                }
-                                """.formatted(automationId)))
+        MvcResult helloResult = sendMessage(null, automationId, "msg-001", "request-flow-001", "hello")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversationId").isNotEmpty())
                 .andExpect(jsonPath("$.sessionId").isNotEmpty())
-                .andExpect(jsonPath("$.response").value("Order A123 dang duoc xu ly."))
+                .andExpect(jsonPath("$.response").value("I can check an order, create a ticket, or route you to an agent. What do you need?"))
                 .andExpect(jsonPath("$.duplicate").value(false))
                 .andReturn();
 
-        String conversationId = read(chatResult, "conversationId");
-        String responseMessageId = read(chatResult, "responseMessageId");
+        String conversationId = read(helloResult, "conversationId");
 
-        mockMvc.perform(post("/api/mock-chat/messages")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("X-Request-Id", "request-flow-test-duplicate")
-                        .content("""
-                                {
-                                  "userId": "mock-user-001",
-                                  "conversationId": "%s",
-                                  "messageId": "msg-001",
-                                  "automationId": "%s",
-                                  "text": "toi muon xem don hang A123"
-                                }
-                                """.formatted(conversationId, automationId)))
+        sendMessage(conversationId, automationId, "msg-002", "request-flow-002", "order")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Please send the order code, for example A123."))
+                .andExpect(jsonPath("$.currentNodeId").value("ask_order_id"));
+
+        sendMessage(conversationId, automationId, "msg-003", "request-flow-003", "A123")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(containsString("Order A123 is PACKING")))
+                .andExpect(jsonPath("$.currentNodeId").value("offer_update"));
+
+        sendMessage(conversationId, automationId, "msg-004", "request-flow-004", "update")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(containsString("moved from PACKING to SHIPPING")))
+                .andExpect(jsonPath("$.currentNodeId").value("offer_ticket"));
+
+        MvcResult ticketResult = sendMessage(conversationId, automationId, "msg-005", "request-flow-005", "yes")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value(containsString("Ticket TCK-1001")))
+                .andExpect(jsonPath("$.currentNodeId").value("end"))
+                .andReturn();
+
+        String responseMessageId = read(ticketResult, "responseMessageId");
+
+        sendMessage(conversationId, automationId, "msg-005", "request-flow-005-duplicate", "yes")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.duplicate").value(true))
                 .andExpect(jsonPath("$.responseMessageId").value(responseMessageId))
-                .andExpect(jsonPath("$.response").value("Order A123 dang duoc xu ly."));
+                .andExpect(jsonPath("$.response").value(containsString("Ticket TCK-1001")));
+
+        mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/session", conversationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.currentNodeId").value("end"))
+                .andExpect(jsonPath("$.version").value(5));
 
         mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/history", conversationId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items.length()").value(2));
+                .andExpect(jsonPath("$.items.length()").value(10))
+                .andExpect(jsonPath("$.items[0].intent").value("GREETING"))
+                .andExpect(jsonPath("$.items[2].intent").value("ORDER_STATUS_REQUEST"))
+                .andExpect(jsonPath("$.items[4].intent").value("ORDER_ID_PROVIDED"))
+                .andExpect(jsonPath("$.items[6].intent").value("STATUS_UPDATE_REQUEST"))
+                .andExpect(jsonPath("$.items[8].intent").value("AFFIRMATION"));
 
         mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/trace", conversationId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].requestId").value("request-flow-test"))
-                .andExpect(jsonPath("$.items[0].messageId").value("msg-001"));
+                .andExpect(jsonPath("$.items.length()").value(5))
+                .andExpect(jsonPath("$.items[2].detailJson").value(containsString("\"category\":\"ORDER_STATUS\"")))
+                .andExpect(jsonPath("$.items[3].detailJson").value(containsString("\"category\":\"ORDER_STATUS_UPDATE\"")))
+                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"category\":\"TICKET_CREATION\"")));
+    }
+
+    private ResultActions sendMessage(
+            String conversationId,
+            String automationId,
+            String messageId,
+            String requestId,
+            String text
+    ) throws Exception {
+        String conversationField = conversationId == null ? "" : """
+                                  "conversationId": "%s",
+                """.formatted(conversationId);
+        return mockMvc.perform(post("/api/mock-chat/messages")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Request-Id", requestId)
+                .content("""
+                        {
+                          "userId": "mock-user-001",
+                %s          "messageId": "%s",
+                          "automationId": "%s",
+                          "text": "%s"
+                        }
+                        """.formatted(conversationField, messageId, automationId, text)));
+    }
+
+    private String multiTurnWorkflowRequest() {
+        return """
+                {
+                  "definition": {
+                    "nodes": [
+                      {"id": "start", "type": "START", "config": {}},
+                      {"id": "menu", "type": "QUESTION", "config": {"message": "I can check an order, create a ticket, or route you to an agent. What do you need?", "category": "INTENT_MENU"}},
+                      {"id": "menu_retry", "type": "QUESTION", "config": {"message": "I did not catch that. Choose order, ticket, or agent.", "category": "FALLBACK"}},
+                      {"id": "ask_order_id", "type": "QUESTION", "config": {"message": "Please send the order code, for example A123.", "category": "ORDER_ID_COLLECTION"}},
+                      {"id": "lookup", "type": "ACTION", "config": {"action": "ORDER_LOOKUP"}},
+                      {"id": "offer_update", "type": "QUESTION", "config": {"message": "Reply update for a proactive status refresh, ticket to create a follow-up, or done.", "category": "FOLLOW_UP"}},
+                      {"id": "update_status", "type": "ACTION", "config": {"action": "ORDER_STATUS_UPDATE"}},
+                      {"id": "offer_ticket", "type": "QUESTION", "config": {"message": "Do you want me to create a follow-up ticket?", "category": "TICKET_OFFER"}},
+                      {"id": "ticket", "type": "ACTION", "config": {"action": "TICKET_CREATION"}},
+                      {"id": "handoff", "type": "HANDOFF", "config": {"message": "I will route this conversation to a support specialist."}},
+                      {"id": "end", "type": "END", "config": {"message": "Done. I have enough information for this case."}}
+                    ],
+                    "edges": [
+                      {"from": "start", "to": "menu", "matchType": "ALWAYS", "matchValue": ""},
+                      {"from": "menu", "to": "ask_order_id", "matchType": "KEYWORD", "matchValue": "order"},
+                      {"from": "menu", "to": "ticket", "matchType": "KEYWORD", "matchValue": "ticket"},
+                      {"from": "menu", "to": "handoff", "matchType": "KEYWORD", "matchValue": "agent"},
+                      {"from": "menu", "to": "menu_retry", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "menu_retry", "to": "ask_order_id", "matchType": "KEYWORD", "matchValue": "order"},
+                      {"from": "menu_retry", "to": "ticket", "matchType": "KEYWORD", "matchValue": "ticket"},
+                      {"from": "menu_retry", "to": "handoff", "matchType": "KEYWORD", "matchValue": "agent"},
+                      {"from": "menu_retry", "to": "menu_retry", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "ask_order_id", "to": "lookup", "matchType": "CONDITION", "matchValue": "[a-z][0-9]{3}"},
+                      {"from": "ask_order_id", "to": "ask_order_id", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "lookup", "to": "offer_update", "matchType": "ALWAYS", "matchValue": ""},
+                      {"from": "offer_update", "to": "update_status", "matchType": "KEYWORD", "matchValue": "update"},
+                      {"from": "offer_update", "to": "ticket", "matchType": "KEYWORD", "matchValue": "ticket"},
+                      {"from": "offer_update", "to": "end", "matchType": "KEYWORD", "matchValue": "done"},
+                      {"from": "offer_update", "to": "offer_update", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "update_status", "to": "offer_ticket", "matchType": "ALWAYS", "matchValue": ""},
+                      {"from": "offer_ticket", "to": "ticket", "matchType": "OPTION", "matchValue": "yes"},
+                      {"from": "offer_ticket", "to": "end", "matchType": "OPTION", "matchValue": "no"},
+                      {"from": "offer_ticket", "to": "offer_ticket", "matchType": "FALLBACK", "matchValue": ""},
+                      {"from": "ticket", "to": "end", "matchType": "ALWAYS", "matchValue": ""},
+                      {"from": "handoff", "to": "end", "matchType": "ALWAYS", "matchValue": ""}
+                    ]
+                  }
+                }
+                """;
     }
 
     private String read(MvcResult result, String field) throws Exception {

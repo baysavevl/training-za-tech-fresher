@@ -13,6 +13,7 @@ import com.zalo.training.conversation.domain.ConversationStatus;
 import com.zalo.training.conversation.domain.Customer;
 import com.zalo.training.conversation.domain.ExecutionTrace;
 import com.zalo.training.conversation.domain.Message;
+import com.zalo.training.conversation.domain.MessageIntent;
 import com.zalo.training.conversation.domain.SenderType;
 import com.zalo.training.conversation.domain.SessionStatus;
 import com.zalo.training.conversation.domain.WorkflowVersion;
@@ -33,12 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class MockChatService {
 
     private static final Logger log = LoggerFactory.getLogger(MockChatService.class);
+    private static final Pattern ORDER_ID_PATTERN = Pattern.compile("\\b[A-Z][0-9]{3,}\\b", Pattern.CASE_INSENSITIVE);
 
     private final CustomerRepository customerRepository;
     private final ConversationRepository conversationRepository;
@@ -108,6 +113,7 @@ public class MockChatService {
         }
         WorkflowVersion workflowVersion = automationService.getWorkflowVersion(automation.activeWorkflowVersionId());
         WorkflowDefinition workflow = automationService.readDefinition(workflowVersion);
+        String actionInput = actionInput(conversation.id(), inbound.text());
 
         Instant now = Instant.now();
         Message userMessage = new Message(
@@ -115,7 +121,7 @@ public class MockChatService {
                 conversation.id(),
                 SenderType.CUSTOMER,
                 inbound.text(),
-                null,
+                categorizeIntent(inbound.text()),
                 inbound.requestId(),
                 now
         );
@@ -124,7 +130,12 @@ public class MockChatService {
         ConversationSession session = sessionRepository.findByConversationId(conversation.id())
                 .orElseGet(() -> createSession(conversation.id(), automation.id(), workflowVersion.id(), now));
 
-        WorkflowExecutionOutcome outcome = executionEngine.execute(workflow, session.currentNodeId(), inbound.text(), actionAdapter);
+        WorkflowExecutionOutcome outcome = executionEngine.execute(
+                workflow,
+                session.currentNodeId(),
+                inbound.text(),
+                (actionName, ignoredInput) -> actionAdapter.execute(actionName, actionInput)
+        );
         ConversationSession updatedSession = new ConversationSession(
                 session.id(),
                 session.conversationId(),
@@ -170,7 +181,7 @@ public class MockChatService {
                     outcome.nodeId(),
                     "MOCK_ACTION",
                     ActionStatus.DONE,
-                    "{\"input\":\"%s\"}".formatted(inbound.text()),
+                    "{\"input\":\"%s\"}".formatted(escapeJson(inbound.text())),
                     outcome.detailJson(),
                     1,
                     Instant.now(),
@@ -190,6 +201,53 @@ public class MockChatService {
         );
 
         return new MockChatResult(conversation.id(), updatedSession.id(), outcome.response(), outcome.nodeId(), botMessage.id(), false);
+    }
+
+    private String actionInput(UUID conversationId, String currentText) {
+        List<Message> previousMessages = messageRepository.findByConversationId(conversationId);
+        if (previousMessages.isEmpty()) {
+            return currentText;
+        }
+        String transcript = previousMessages.stream()
+                .map(message -> "%s: %s".formatted(message.senderType().name(), message.content()))
+                .collect(Collectors.joining("\n"));
+        return "%s\n\nconversation_context:\n%s".formatted(currentText, transcript);
+    }
+
+    private MessageIntent categorizeIntent(String input) {
+        String normalized = input == null ? "" : input.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return MessageIntent.UNKNOWN;
+        }
+        if (normalized.equals("yes") || normalized.equals("y") || normalized.equals("co")) {
+            return MessageIntent.AFFIRMATION;
+        }
+        if (normalized.equals("no") || normalized.equals("n") || normalized.equals("khong")) {
+            return MessageIntent.NEGATION;
+        }
+        if (normalized.equals("hello") || normalized.equals("hi") || normalized.contains("xin chao")) {
+            return MessageIntent.GREETING;
+        }
+        if (normalized.contains("agent") || normalized.contains("nhan vien")) {
+            return MessageIntent.HUMAN_AGENT_REQUEST;
+        }
+        if (normalized.contains("ticket")) {
+            return MessageIntent.TICKET_REQUEST;
+        }
+        if (normalized.contains("update") || normalized.contains("cap nhat")) {
+            return MessageIntent.STATUS_UPDATE_REQUEST;
+        }
+        if (ORDER_ID_PATTERN.matcher(normalized).find()) {
+            return MessageIntent.ORDER_ID_PROVIDED;
+        }
+        if (normalized.contains("order") || normalized.contains("don hang") || normalized.contains("status")) {
+            return MessageIntent.ORDER_STATUS_REQUEST;
+        }
+        return MessageIntent.UNKNOWN;
+    }
+
+    private String escapeJson(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private Customer findOrCreateCustomer(String userId) {

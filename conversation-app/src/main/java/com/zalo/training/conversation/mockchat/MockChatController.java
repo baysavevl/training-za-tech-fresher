@@ -3,6 +3,7 @@ package com.zalo.training.conversation.mockchat;
 import com.zalo.training.conversation.domain.ConversationSession;
 import com.zalo.training.conversation.domain.ExecutionTrace;
 import com.zalo.training.conversation.domain.Message;
+import com.zalo.training.conversation.domain.MessageIntent;
 import com.zalo.training.conversation.domain.SenderType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -88,9 +89,9 @@ public class MockChatController {
     public record HistoryResponse(List<MessageItem> items) {
     }
 
-    public record MessageItem(UUID id, SenderType senderType, String content, String traceId, Instant createdAt) {
+    public record MessageItem(UUID id, SenderType senderType, String content, MessageIntent intent, String traceId, Instant createdAt) {
         static MessageItem from(Message message) {
-            return new MessageItem(message.id(), message.senderType(), message.content(), message.traceId(), message.createdAt());
+            return new MessageItem(message.id(), message.senderType(), message.content(), message.intent(), message.traceId(), message.createdAt());
         }
     }
 

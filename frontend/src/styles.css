@@ -886,6 +886,40 @@ label {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.script-preview {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.script-step {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.script-step span {
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.script-step strong {
+  font-family: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.script-step small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .demo-step {
   align-items: center;
   background: #f8fafd;
@@ -1813,6 +1847,35 @@ label {
   font-weight: 900;
 }
 
+.trace-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-start;
+}
+
+.trace-meta small {
+  color: var(--muted);
+  font-family: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
+.intent-badge {
+  background: #e8f0fe;
+  border: 1px solid #d2e3fc;
+  border-radius: 999px;
+  color: var(--blue);
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 5px 7px;
+  width: fit-content;
+}
+
 code {
   color: var(--muted);
   font-family: "Roboto Mono", "SFMono-Regular", Consolas, monospace;
@@ -1891,7 +1954,8 @@ code {
   .flow-board,
   .entry-grid,
   .study-grid,
-  .demo-progress {
+  .demo-progress,
+  .script-preview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1978,7 +2042,8 @@ code {
   .flow-board,
   .entry-grid,
   .study-grid,
-  .demo-progress {
+  .demo-progress,
+  .script-preview {
     grid-template-columns: 1fr;
   }
 
