@@ -361,6 +361,78 @@ export function createFriendlyDemoGuide(seed = Date.now()) {
   }
 }
 
+export function createJourneyGuide(seed = Date.now()) {
+  const script = createAutoDemoScript(seed)
+
+  return {
+    title: 'Start here',
+    subtitle: 'This project teaches how a support bot handles one customer journey from first message to finished ticket.',
+    promise: 'Run one guided demo, read the customer outcome, then replace the mock services with your company systems.',
+    steps: [
+      {
+        title: 'Understand the project',
+        goal: 'Know the job before opening any technical panels.',
+        action: 'Read this page first.',
+        result: 'You can explain the project in one sentence: a support bot checks an order, updates it, and creates a follow-up ticket.'
+      },
+      {
+        title: 'Run the demo',
+        goal: 'See the complete flow without setup decisions.',
+        action: 'Click Run the demo.',
+        result: 'The app prepares the bot, sends a five-message customer conversation, and saves the result.'
+      },
+      {
+        title: 'Read the result',
+        goal: 'Understand what the customer experienced.',
+        action: 'Check the story, latest reply, and outcome sections.',
+        result: 'You can see whether the order was found, status was updated, ticket was created, and retry stayed safe.'
+      },
+      {
+        title: 'Connect your company app',
+        goal: 'Turn the sample into a real company workflow.',
+        action: 'Replace each mock service with your company chat, order, and ticket systems.',
+        result: 'The same conversation flow can run behind real customer channels and internal tools.'
+      }
+    ],
+    paths: [
+      {
+        label: 'I only want to demo it',
+        action: 'Run the demo',
+        detail: 'Use this when you need to show the product story quickly to teammates or stakeholders.'
+      },
+      {
+        label: 'I want to learn how it works',
+        action: 'Open Technical view',
+        detail: 'Use this after the demo when you want to inspect saved messages, bot decisions, and workflow setup.'
+      },
+      {
+        label: 'I want to integrate it',
+        action: 'Use the checklist',
+        detail: 'Use the integration checklist to decide which company systems replace each mock piece.'
+      }
+    ],
+    integrationChecklist: [
+      {
+        area: 'Chat channel',
+        change: 'Send real customer messages from web chat, Zalo, Slack, or another channel into this conversation flow.'
+      },
+      {
+        area: 'Order service',
+        change: 'Replace the mock order lookup with your company order system.'
+      },
+      {
+        area: 'Ticket service',
+        change: 'Replace the mock ticket creation with Jira, Zendesk, or your internal support tool.'
+      },
+      {
+        area: 'Retry safety',
+        change: 'Keep conversationId, messageId, and requestId stable when a client retries the same message.'
+      }
+    ],
+    demoInputs: script.map((step) => step.text)
+  }
+}
+
 export function normalizeHistoryItems(history = []) {
   if (!Array.isArray(history)) {
     return []

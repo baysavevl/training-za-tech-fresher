@@ -9,6 +9,7 @@ import {
   createAutoDemoMessageFields,
   createAutoDemoScript,
   createFriendlyDemoGuide,
+  createJourneyGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
@@ -170,6 +171,37 @@ test('friendly demo guide explains the same project without API-first language',
   assert.deepEqual(guide.sampleChat.map((turn) => turn.text), ['hello', 'order', 'A123', 'update', 'delivery delay'])
   assert.equal(guide.outcomes.some((item) => item.label === 'Ticket created'), true)
   assert.equal(/POST|GET|\/api|node|edge|trace/i.test(allCopy), false)
+})
+
+test('journey guide gives first-time users a clear project path', () => {
+  const guide = createJourneyGuide(123456)
+  const firstRunCopy = [
+    guide.title,
+    guide.subtitle,
+    guide.promise,
+    ...guide.steps.flatMap((step) => [step.title, step.goal, step.action, step.result]),
+    ...guide.paths.flatMap((path) => [path.label, path.action, path.detail])
+  ].join(' ')
+
+  assert.deepEqual(guide.steps.map((step) => step.title), [
+    'Understand the project',
+    'Run the demo',
+    'Read the result',
+    'Connect your company app'
+  ])
+  assert.deepEqual(guide.paths.map((path) => path.label), [
+    'I only want to demo it',
+    'I want to learn how it works',
+    'I want to integrate it'
+  ])
+  assert.deepEqual(guide.demoInputs, ['hello', 'order', 'A123', 'update', 'delivery delay'])
+  assert.deepEqual(guide.integrationChecklist.map((item) => item.area), [
+    'Chat channel',
+    'Order service',
+    'Ticket service',
+    'Retry safety'
+  ])
+  assert.equal(/POST|GET|\/api|node|edge|trace/i.test(firstRunCopy), false)
 })
 
 test('history helpers preserve every message row and expose readable summary counts', () => {

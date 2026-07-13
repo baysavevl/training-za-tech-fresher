@@ -26,6 +26,7 @@ import {
   createManualMessageFields,
   createAutoDemoScript,
   createFriendlyDemoGuide,
+  createJourneyGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
@@ -45,6 +46,8 @@ import {
 import { sourceReferencesFor } from './trainingSources.js'
 import { learningSessions, projectBrief, studyCards, trainingTopics } from './trainingContent.js'
 import './styles.css'
+
+const CONSOLE_VIEW_STORAGE_KEY = 'automationConsoleViewV2'
 
 function App() {
   const [path, setPath] = useState(() => window.location.pathname)
@@ -89,14 +92,14 @@ function Dashboard({ navigate }) {
   const [responses, setResponses] = useState({ chat: null, workflow: null })
   const [events, setEvents] = useState([])
   const [busy, setBusy] = useState(false)
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('automationConsoleView') || 'simple')
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem(CONSOLE_VIEW_STORAGE_KEY) || 'journey')
 
   useEffect(() => {
     localStorage.setItem('conversationAutomationUi', JSON.stringify({ ...state, _version: DEMO_STATE_VERSION }))
   }, [state])
 
   useEffect(() => {
-    localStorage.setItem('automationConsoleView', viewMode)
+    localStorage.setItem(CONSOLE_VIEW_STORAGE_KEY, viewMode)
   }, [viewMode])
 
   const idsReady = useMemo(() => ({
@@ -335,6 +338,9 @@ function Dashboard({ navigate }) {
           </div>
           <div className="topbar-actions">
             <div className="view-switch" role="tablist" aria-label="Console view">
+              <button type="button" className={viewMode === 'journey' ? 'active' : ''} onClick={() => setViewMode('journey')} aria-selected={viewMode === 'journey'}>
+                <Play size={15} aria-hidden="true" /> Start here
+              </button>
               <button type="button" className={viewMode === 'simple' ? 'active' : ''} onClick={() => setViewMode('simple')} aria-selected={viewMode === 'simple'}>
                 <MessageSquare size={15} aria-hidden="true" /> Simple view
               </button>
@@ -349,7 +355,19 @@ function Dashboard({ navigate }) {
           </div>
         </header>
 
-        {viewMode === 'simple' ? (
+        {viewMode === 'journey' ? (
+          <JourneyGuide
+            busy={busy}
+            history={history}
+            idsReady={idsReady}
+            onRunDemo={() => quickSetup(true)}
+            onShowSimple={() => setViewMode('simple')}
+            onShowTechnical={() => setViewMode('technical')}
+            responses={responses}
+            session={session}
+            trace={trace}
+          />
+        ) : viewMode === 'simple' ? (
           <FriendlyConsole
             busy={busy}
             history={history}
@@ -491,6 +509,175 @@ function Dashboard({ navigate }) {
         )}
       </section>
     </main>
+  )
+}
+
+function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShowTechnical, responses, session, trace }) {
+  const guide = createJourneyGuide(123456)
+  const rows = normalizeHistoryItems(history)
+  const summary = summarizeHistory(history)
+  const hasTranscript = rows.length > 0
+  const latestBotReply = responses.chat?.response || [...rows].reverse().find(row => row.senderType === 'BOT')?.content || ''
+  const traceText = JSON.stringify(trace)
+  const outcomeState = {
+    'Order checked': /ORDER_STATUS/.test(traceText) || rows.some(row => /A123|PACKING|SHIPPING/i.test(row.content)),
+    'Status updated': /ORDER_STATUS_UPDATE/.test(traceText) || rows.some(row => /SHIPPING/i.test(row.content)),
+    'Ticket created': /TICKET_CREATION/.test(traceText) || session?.currentNodeId === 'end',
+    'Retry safe': Boolean(responses.chat?.duplicate) || hasTranscript
+  }
+  const statusItems = [
+    {
+      label: 'Bot prepared',
+      active: idsReady.automation,
+      detail: idsReady.automation ? 'Ready to answer customers' : 'Created when the demo starts'
+    },
+    {
+      label: 'Rules loaded',
+      active: idsReady.workflow,
+      detail: idsReady.workflow ? 'Order support path is published' : 'Published automatically'
+    },
+    {
+      label: 'Demo chat',
+      active: idsReady.conversation,
+      detail: idsReady.conversation ? `${summary.total || 1} saved messages` : 'No conversation yet'
+    },
+    {
+      label: 'Outcome',
+      active: session?.status === 'COMPLETED' || session?.currentNodeId === 'end',
+      detail: session?.status === 'COMPLETED' ? 'Support case finished' : 'Waiting for demo run'
+    }
+  ]
+  const scrollToChecklist = () => {
+    document.getElementById('journey-integration-checklist')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const pathActions = {
+    'Run the demo': onRunDemo,
+    'Open Technical view': onShowTechnical,
+    'Use the checklist': scrollToChecklist
+  }
+
+  return (
+    <div className="journey-guide">
+      <section className="journey-hero">
+        <div className="journey-hero-copy">
+          <p className="eyebrow">New user journey</p>
+          <h3>{guide.title}</h3>
+          <p>{guide.subtitle}</p>
+          <strong>{guide.promise}</strong>
+          <div className="journey-actions">
+            <button type="button" className="primary" onClick={onRunDemo} disabled={busy}>
+              <Send size={16} aria-hidden="true" /> Run the demo
+            </button>
+            <button type="button" onClick={onShowSimple}>
+              <MessageSquare size={16} aria-hidden="true" /> Simple view
+            </button>
+            <button type="button" onClick={onShowTechnical}>
+              <Bug size={16} aria-hidden="true" /> Technical view
+            </button>
+          </div>
+        </div>
+
+        <div className="journey-progress" aria-label="Current demo progress">
+          {statusItems.map(item => (
+            <div className={item.active ? 'ready' : ''} key={item.label}>
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <span>{item.label}</span>
+              <strong>{item.detail}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="journey-steps" aria-label="Project journey steps">
+        {guide.steps.map((step, index) => (
+          <article key={step.title}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <div>
+              <h4>{step.title}</h4>
+              <p>{step.goal}</p>
+              <strong>{step.action}</strong>
+              <small>{step.result}</small>
+            </div>
+          </article>
+        ))}
+      </section>
+
+      <div className="journey-main">
+        <section className="journey-result-panel">
+          <header>
+            <div>
+              <p className="eyebrow">After you run it</p>
+              <h4>{hasTranscript ? 'What the demo produced' : 'What you should expect'}</h4>
+            </div>
+            <span>{hasTranscript ? `${summary.customer} customer turns` : 'Not run yet'}</span>
+          </header>
+          <div className="journey-outcomes">
+            {Object.entries(outcomeState).map(([label, active]) => (
+              <div className={active ? 'ready' : ''} key={label}>
+                <CheckCircle2 size={16} aria-hidden="true" />
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="journey-latest-reply">
+            <strong>Latest bot reply</strong>
+            <p>{latestBotReply || 'Run the demo to create the first customer result.'}</p>
+          </div>
+        </section>
+
+        <section className="journey-script-panel">
+          <header>
+            <p className="eyebrow">Demo conversation</p>
+            <h4>The app sends these customer messages</h4>
+          </header>
+          <ol>
+            {guide.demoInputs.map((input, index) => (
+              <li key={`${input}-${index}`}>
+                <span>{index + 1}</span>
+                <strong>{input}</strong>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </div>
+
+      <section className="journey-path-panel">
+        <header>
+          <p className="eyebrow">Choose your path</p>
+          <h4>Use the same project for demo, learning, or integration</h4>
+        </header>
+        <div className="journey-paths">
+          {guide.paths.map(path => (
+            <article key={path.label}>
+              <Workflow size={18} aria-hidden="true" />
+              <h5>{path.label}</h5>
+              <p>{path.detail}</p>
+              <button type="button" onClick={pathActions[path.action] || undefined} disabled={busy && path.action === 'Run the demo'}>
+                {path.action}
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="journey-integration-panel" id="journey-integration-checklist">
+        <header>
+          <p className="eyebrow">Company integration checklist</p>
+          <h4>What to replace when this becomes a real company project</h4>
+        </header>
+        <div className="journey-checklist">
+          {guide.integrationChecklist.map(item => (
+            <article key={item.area}>
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <div>
+                <h5>{item.area}</h5>
+                <p>{item.change}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    </div>
   )
 }
 
