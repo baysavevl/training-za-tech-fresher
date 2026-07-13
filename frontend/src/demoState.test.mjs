@@ -4,8 +4,11 @@ import { test } from 'node:test'
 import {
   DEMO_STATE_VERSION,
   SAMPLE_WORKFLOW,
+  advanceManualMessageFields,
+  createManualMessageFields,
   createAutoDemoMessageFields,
   createAutoDemoScript,
+  duplicateReplayFields,
   hydrateDemoState,
   initialDemoState,
   updateOperationResponses
@@ -69,6 +72,28 @@ test('auto demo message fields start a fresh non-duplicate conversation', () => 
     conversationId: '',
     messageId: 'msg-auto-2n9c',
     requestId: 'request-auto-2n9c'
+  })
+})
+
+test('manual send prepares a fresh message id while duplicate replay keeps the sent id', () => {
+  const next = advanceManualMessageFields(initialDemoState, {
+    sentMessageId: 'msg-001',
+    sentRequestId: 'request-ui-001',
+    seed: 123456
+  })
+
+  assert.equal(next.lastSentMessageId, 'msg-001')
+  assert.equal(next.lastSentRequestId, 'request-ui-001')
+  assert.equal(next.manualSequence, 2)
+  assert.deepEqual(createManualMessageFields(2, 123456), {
+    messageId: 'msg-manual-2n9c-02',
+    requestId: 'request-manual-2n9c-02'
+  })
+  assert.equal(next.messageId, 'msg-manual-2n9c-02')
+  assert.equal(next.requestId, 'request-manual-2n9c-02')
+  assert.deepEqual(duplicateReplayFields(next), {
+    messageId: 'msg-001',
+    requestId: 'request-ui-001-dup'
   })
 })
 

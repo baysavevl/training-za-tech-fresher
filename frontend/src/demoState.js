@@ -1,4 +1,4 @@
-export const DEMO_STATE_VERSION = '2026-07-13-category-demo-v4'
+export const DEMO_STATE_VERSION = '2026-07-13-category-demo-v5'
 
 export const SAMPLE_WORKFLOW = {
   nodes: [
@@ -86,9 +86,41 @@ export const initialDemoState = {
   userId: 'mock-user-001',
   messageId: 'msg-001',
   requestId: 'request-ui-001',
+  lastSentMessageId: '',
+  lastSentRequestId: '',
+  manualSequence: 1,
   text: 'hello',
   conversationId: '',
   workflowJson: JSON.stringify(SAMPLE_WORKFLOW, null, 2)
+}
+
+export function createManualMessageFields(sequence = 1, seed = Date.now()) {
+  const suffix = Number(seed).toString(36)
+  const step = String(Math.max(1, Number(sequence) || 1)).padStart(2, '0')
+  return {
+    messageId: `msg-manual-${suffix}-${step}`,
+    requestId: `request-manual-${suffix}-${step}`
+  }
+}
+
+export function advanceManualMessageFields(currentState, { sentMessageId, sentRequestId, seed = Date.now() } = {}) {
+  const currentSequence = Math.max(1, Number(currentState?.manualSequence) || 1)
+  const manualSequence = currentSequence + 1
+  return {
+    ...createManualMessageFields(manualSequence, seed),
+    manualSequence,
+    lastSentMessageId: sentMessageId || currentState?.messageId || '',
+    lastSentRequestId: sentRequestId || currentState?.requestId || ''
+  }
+}
+
+export function duplicateReplayFields(currentState) {
+  const messageId = currentState?.lastSentMessageId || currentState?.messageId?.trim() || initialDemoState.messageId
+  const requestId = currentState?.lastSentRequestId || currentState?.requestId?.trim() || initialDemoState.requestId
+  return {
+    messageId,
+    requestId: requestId.endsWith('-dup') ? requestId : `${requestId}-dup`
+  }
 }
 
 export function createAutoDemoMessageFields(seed = Date.now()) {

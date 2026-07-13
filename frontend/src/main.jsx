@@ -20,8 +20,11 @@ import { readTrainingSource, requestJson } from './apiClient.js'
 import {
   DEMO_STATE_VERSION,
   SAMPLE_WORKFLOW,
+  advanceManualMessageFields,
   createAutoDemoMessageFields,
+  createManualMessageFields,
   createAutoDemoScript,
+  duplicateReplayFields,
   hydrateDemoState,
   initialDemoState,
   updateOperationResponses
@@ -157,10 +160,13 @@ function Dashboard({ navigate }) {
   }
 
   async function sendMessage(duplicate = false) {
-    const messageId = duplicate ? state.messageId : state.messageId.trim()
+    const duplicateFields = duplicate ? duplicateReplayFields(state) : null
+    const fallbackFields = createManualMessageFields(state.manualSequence || 1)
+    const messageId = duplicate ? duplicateFields.messageId : (state.messageId.trim() || fallbackFields.messageId)
+    const requestId = duplicate ? duplicateFields.requestId : (state.requestId.trim() || fallbackFields.requestId)
     const result = await run(duplicate ? 'Duplicate message replayed' : 'Message processed', () => request('/api/mock-chat/messages', {
       method: 'POST',
-      headers: { 'X-Request-Id': duplicate ? `${state.requestId}-dup` : state.requestId },
+      headers: { 'X-Request-Id': requestId },
       body: JSON.stringify({
         userId: state.userId,
         conversationId: state.conversationId || null,
@@ -170,7 +176,12 @@ function Dashboard({ navigate }) {
       })
     }))
     if (result) {
-      patch({ conversationId: result.conversationId })
+      patch({
+        conversationId: result.conversationId,
+        ...(!duplicate && !result.duplicate
+          ? advanceManualMessageFields(state, { sentMessageId: messageId, sentRequestId: requestId })
+          : {})
+      })
       setResponses(current => updateOperationResponses(current, 'chat', result))
       await refreshDebug(result.conversationId)
     }
@@ -224,6 +235,8 @@ function Dashboard({ navigate }) {
         ...(lastStep ? {
           messageId: lastStep.messageId,
           requestId: lastStep.requestId,
+          lastSentMessageId: lastStep.messageId,
+          lastSentRequestId: lastStep.requestId,
           text: lastStep.text
         } : {}),
         conversationId: result.message?.conversationId || state.conversationId
@@ -346,11 +359,11 @@ function Dashboard({ navigate }) {
                 <input value={state.userId} onChange={event => patch({ userId: event.target.value })} />
               </label>
               <label>
-                Message ID
+                Next message ID
                 <input value={state.messageId} onChange={event => patch({ messageId: event.target.value })} />
               </label>
               <label>
-                Request ID
+                Next request ID
                 <input value={state.requestId} onChange={event => patch({ requestId: event.target.value })} />
               </label>
             </div>
@@ -371,7 +384,7 @@ function Dashboard({ navigate }) {
                 ? 'Send is locked until an automation exists. Use Run auto demo for the fastest path.'
                 : !idsReady.workflow
                   ? 'Publish the workflow before sending a message.'
-                  : 'Manual send is ready. Run auto demo always starts a fresh conversation with a fresh message ID.'}
+                  : 'Send uses the visible next message ID and prepares a new one after success. Replay duplicate reuses the last sent message ID to prove idempotency.'}
             </p>
             <JsonBlock title="Last chat response" data={responses.chat} />
           </section>
