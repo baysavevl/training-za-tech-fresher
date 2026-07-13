@@ -11,4 +11,4 @@ frontend/dist/
 .playwright-cli/
 .vercel/
 .vercel
-multica/
+/multica/
