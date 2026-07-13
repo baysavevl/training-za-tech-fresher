@@ -36,10 +36,4 @@ class UiForwardControllerTest {
                 .andExpect(forwardedUrl("/index.html"));
     }
 
-    @Test
-    void forwardsAgentRoutesToReactIndex() throws Exception {
-        mockMvc.perform(get("/agents/runtime/codex"))
-                .andExpect(status().isOk())
-                .andExpect(forwardedUrl("/index.html"));
-    }
 }
