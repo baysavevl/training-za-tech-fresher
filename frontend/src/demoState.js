@@ -193,6 +193,150 @@ export function createAutoDemoScript(seed = Date.now()) {
   ]
 }
 
+export function createProjectFlowLanes(seed = Date.now()) {
+  const script = createAutoDemoScript(seed)
+  const messagePath = script.map((step) => step.flow).join(' | ')
+
+  return [
+    {
+      id: 'setup',
+      title: 'API setup',
+      description: 'Create the automation shell and keep the returned IDs as the contract between UI, API, and runtime.',
+      checkpoints: [
+        {
+          label: 'Create automation',
+          surface: 'POST /api/automations',
+          evidence: 'automationId is required before any workflow version can be saved.'
+        },
+        {
+          label: 'Prepare deterministic IDs',
+          surface: 'messageId + requestId',
+          evidence: 'Manual send advances IDs; duplicate replay intentionally reuses the sent message ID.'
+        }
+      ]
+    },
+    {
+      id: 'workflow',
+      title: 'Workflow graph',
+      description: `Publish ${SAMPLE_WORKFLOW.nodes.length} nodes and ${SAMPLE_WORKFLOW.edges.length} edges so each user turn can move through a known state machine.`,
+      checkpoints: [
+        {
+          label: 'Save draft graph',
+          surface: 'POST /api/workflow-versions',
+          evidence: 'QUESTION, ACTION, HANDOFF, and END nodes are persisted as a JSON workflow definition.'
+        },
+        {
+          label: 'Publish runnable version',
+          surface: 'POST /api/workflow-versions/{id}/publish',
+          evidence: 'The chat runtime only accepts messages after a published workflow version exists.'
+        }
+      ]
+    },
+    {
+      id: 'conversation',
+      title: 'Conversation runtime',
+      description: 'Send the multi-turn script through the same chat endpoint users would call from a real channel.',
+      checkpoints: [
+        {
+          label: 'Route every turn',
+          surface: 'POST /api/chat',
+          evidence: messagePath
+        },
+        {
+          label: 'Prove idempotency',
+          surface: 'Replay duplicate',
+          evidence: 'The same message ID returns the prior response without appending extra history rows.'
+        }
+      ]
+    },
+    {
+      id: 'adapters',
+      title: 'Action adapters',
+      description: 'Run business actions only when the graph reaches an ACTION node, keeping external side effects out of intent matching.',
+      checkpoints: [
+        {
+          label: 'Lookup order',
+          surface: 'ORDER_LOOKUP',
+          evidence: 'The mock adapter returns order status after the order code matches the expected pattern.'
+        },
+        {
+          label: 'Create follow-up ticket',
+          surface: 'TICKET_CREATION',
+          evidence: 'The support category from the final user turn becomes the ticket input.'
+        }
+      ]
+    },
+    {
+      id: 'state',
+      title: 'State and observability',
+      description: 'Refresh history, trace, and session after the run so the UI shows what happened, why it happened, and where the session ended.',
+      checkpoints: [
+        {
+          label: 'Conversation transcript',
+          surface: 'GET /api/conversations/{id}/history',
+          evidence: 'Every customer and bot row received from the API is rendered in order.'
+        },
+        {
+          label: 'Runtime diagnostics',
+          surface: 'GET /api/conversations/{id}/trace',
+          evidence: 'Trace rows expose nodeId, category, order id, support category, requestId, and messageId.'
+        }
+      ]
+    },
+    {
+      id: 'integration',
+      title: 'Company integration path',
+      description: 'Use this project as an API-first adapter around company channels, CRMs, order services, ticketing tools, and observability.',
+      checkpoints: [
+        {
+          label: 'Swap mock adapters',
+          surface: 'Order/Ticket services',
+          evidence: 'Replace local mock actions with authenticated company service clients behind the same action names.'
+        },
+        {
+          label: 'Keep contracts stable',
+          surface: 'REST + idempotency',
+          evidence: 'Channels can retry safely when they preserve conversationId, messageId, and requestId.'
+        }
+      ]
+    }
+  ]
+}
+
+export function normalizeHistoryItems(history = []) {
+  if (!Array.isArray(history)) {
+    return []
+  }
+
+  return history.map((message, index) => {
+    const senderType = String(message?.senderType || 'UNKNOWN').toUpperCase()
+    return {
+      id: message?.id || `history-row-${index + 1}`,
+      senderType,
+      content: message?.content ?? '',
+      intent: message?.intent || '',
+      traceId: message?.traceId || '',
+      displayIndex: index + 1
+    }
+  })
+}
+
+export function summarizeHistory(history = []) {
+  const rows = normalizeHistoryItems(history)
+  const senderCounts = rows.reduce((counts, row) => ({
+    ...counts,
+    [row.senderType]: (counts[row.senderType] || 0) + 1
+  }), {})
+  const intents = [...new Set(rows.map((row) => row.intent).filter(Boolean))]
+
+  return {
+    total: rows.length,
+    customer: senderCounts.CUSTOMER || 0,
+    bot: senderCounts.BOT || 0,
+    intents
+  }
+}
+
 export function updateOperationResponses(currentResponses, target, payload) {
   const next = {
     chat: currentResponses?.chat || null,

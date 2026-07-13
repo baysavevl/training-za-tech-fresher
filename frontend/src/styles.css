@@ -888,11 +888,113 @@ label {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.project-flow-map {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+.project-flow-header {
+  align-items: end;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.project-flow-header h4 {
+  font-size: 18px;
+  margin: 3px 0 0;
+}
+
+.project-flow-header > span {
+  background: #e8f0fe;
+  border: 1px solid #d2e3fc;
+  border-radius: 999px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 6px 9px;
+  white-space: nowrap;
+}
+
+.project-flow-lanes {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.project-flow-lane {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.project-flow-lane header {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 30px minmax(0, 1fr);
+}
+
+.project-flow-lane header > span {
+  align-items: center;
+  background: #e8f0fe;
+  border-radius: 8px;
+  color: var(--blue);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 900;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.project-flow-lane strong {
+  display: block;
+  font-size: 14px;
+}
+
+.project-flow-lane small {
+  color: var(--muted);
+  display: block;
+  line-height: 1.4;
+}
+
+.project-flow-lane ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-flow-lane li {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px;
+}
+
+.project-flow-lane li > div {
+  align-items: start;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .script-preview {
   display: grid;
   gap: 8px;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
 }
 
 .script-step {
@@ -1773,7 +1875,7 @@ label {
 .grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(360px, 1.08fr) minmax(320px, 0.92fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
 }
 
 .panel {
@@ -1839,9 +1941,13 @@ label {
   padding-top: 14px;
 }
 
-.debug-panel,
-.history-panel {
+.debug-panel {
   align-self: start;
+}
+
+.history-panel {
+  align-self: stretch;
+  grid-column: 1 / -1;
 }
 
 .panel-title {
@@ -1920,7 +2026,7 @@ label {
 .field-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .json-field textarea {
@@ -1995,6 +2101,51 @@ label {
   gap: 9px;
 }
 
+.history-view {
+  display: grid;
+  gap: 12px;
+}
+
+.history-summary {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.history-summary div {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.history-summary strong,
+.history-summary span {
+  display: block;
+}
+
+.history-summary strong {
+  font-size: 18px;
+}
+
+.history-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.history-intents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.history-scroll {
+  overflow: visible;
+}
+
 .trace-item {
   border-bottom: 1px solid var(--line);
   display: grid;
@@ -2053,6 +2204,7 @@ code {
 .message {
   border: 1px solid var(--line);
   border-radius: 8px;
+  min-width: 0;
   padding: 12px;
 }
 
@@ -2066,11 +2218,15 @@ code {
 
 .message header {
   display: flex;
+  gap: 8px;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .message p {
+  line-height: 1.45;
   margin: 8px 0;
+  overflow-wrap: anywhere;
 }
 
 .agent-shell {
@@ -2425,6 +2581,7 @@ code {
   .entry-grid,
   .study-grid,
   .demo-progress,
+  .project-flow-lanes,
   .script-preview,
   .concept-map-grid,
   .concept-matrix-grid,
@@ -2470,6 +2627,7 @@ code {
   .landing-nav,
   .topbar,
   .field-row,
+  .project-flow-header,
   .topic-header,
   .session-summary,
   .source-viewer header,
@@ -2518,9 +2676,11 @@ code {
   .concept-glossary,
   .agent-form-pair,
   .flow-board,
+  .history-summary,
   .entry-grid,
   .study-grid,
   .demo-progress,
+  .project-flow-lanes,
   .script-preview,
   .concept-map-grid,
   .concept-matrix-grid,

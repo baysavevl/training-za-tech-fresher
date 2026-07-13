@@ -8,9 +8,12 @@ import {
   createManualMessageFields,
   createAutoDemoMessageFields,
   createAutoDemoScript,
+  createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
   initialDemoState,
+  normalizeHistoryItems,
+  summarizeHistory,
   updateOperationResponses
 } from './demoState.js'
 
@@ -129,6 +132,44 @@ test('auto demo script explains which engineering concept each product step prov
     assert.ok(step.evidence.length > 20, `${step.text} should show what to inspect`)
     assert.ok(step.conceptIds.length >= 1, `${step.text} should map to at least one concept`)
   }
+})
+
+test('project flow lanes explain the full setup, runtime, and debug path', () => {
+  const lanes = createProjectFlowLanes(123456)
+
+  assert.equal(lanes.length >= 6, true)
+  assert.deepEqual(lanes.map((lane) => lane.id), [
+    'setup',
+    'workflow',
+    'conversation',
+    'adapters',
+    'state',
+    'integration'
+  ])
+  assert.equal(lanes.every((lane) => lane.checkpoints.length >= 2), true)
+  assert.equal(lanes.some((lane) => lane.description.includes('history, trace, and session')), true)
+  assert.equal(lanes.flatMap((lane) => lane.checkpoints).some((checkpoint) => checkpoint.surface === 'POST /api/chat'), true)
+})
+
+test('history helpers preserve every message row and expose readable summary counts', () => {
+  const rawHistory = Array.from({ length: 14 }, (_, index) => ({
+    id: `history-${index + 1}`,
+    senderType: index % 2 === 0 ? 'CUSTOMER' : 'BOT',
+    content: `message ${index + 1}`,
+    intent: index % 4 === 0 ? 'ORDER_STATUS_REQUEST' : '',
+    traceId: `trace-${index + 1}`
+  }))
+
+  const rows = normalizeHistoryItems(rawHistory)
+  const summary = summarizeHistory(rawHistory)
+
+  assert.equal(rows.length, rawHistory.length)
+  assert.equal(rows.at(0).displayIndex, 1)
+  assert.equal(rows.at(-1).displayIndex, 14)
+  assert.equal(summary.total, 14)
+  assert.equal(summary.customer, 7)
+  assert.equal(summary.bot, 7)
+  assert.deepEqual(summary.intents, ['ORDER_STATUS_REQUEST'])
 })
 
 test('workflow operation response does not replace the last chat response', () => {

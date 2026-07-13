@@ -32,9 +32,12 @@ import {
   createAutoDemoMessageFields,
   createManualMessageFields,
   createAutoDemoScript,
+  createProjectFlowLanes,
   duplicateReplayFields,
   hydrateDemoState,
   initialDemoState,
+  normalizeHistoryItems,
+  summarizeHistory,
   updateOperationResponses
 } from './demoState.js'
 import { shouldUseStaticDemoBackend } from './staticDemoBackend.js'
@@ -378,7 +381,7 @@ function Dashboard({ navigate }) {
             </button>
           </div>
           <DemoProgress idsReady={idsReady} debugReady={history.length > 0 || trace.length > 0} />
-          <DemoScriptPreview />
+          <ProjectFlowMap />
           <AutomationConceptMap />
         </section>
 
@@ -1027,6 +1030,47 @@ function ConversationState({ chatResponse, idsReady }) {
         <strong>{title}</strong>
         <span>{detail}</span>
       </div>
+    </div>
+  )
+}
+
+function ProjectFlowMap() {
+  const lanes = createProjectFlowLanes(123456)
+
+  return (
+    <div className="project-flow-map" aria-label="End-to-end project flow">
+      <div className="project-flow-header">
+        <div>
+          <p className="eyebrow">Project flow</p>
+          <h4>From setup to company integration</h4>
+        </div>
+        <span>{SAMPLE_WORKFLOW.nodes.length} nodes · {SAMPLE_WORKFLOW.edges.length} edges</span>
+      </div>
+      <div className="project-flow-lanes">
+        {lanes.map((lane, index) => (
+          <article className="project-flow-lane" key={lane.id}>
+            <header>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <div>
+                <strong>{lane.title}</strong>
+                <small>{lane.description}</small>
+              </div>
+            </header>
+            <ol>
+              {lane.checkpoints.map((checkpoint) => (
+                <li key={`${lane.id}-${checkpoint.label}`}>
+                  <div>
+                    <strong>{checkpoint.label}</strong>
+                    <code>{checkpoint.surface}</code>
+                  </div>
+                  <small>{checkpoint.evidence}</small>
+                </li>
+              ))}
+            </ol>
+          </article>
+        ))}
+      </div>
+      <DemoScriptPreview />
     </div>
   )
 }
@@ -2239,22 +2283,40 @@ function parseTraceDetail(detailJson) {
 }
 
 function HistoryView({ history }) {
-  if (!history.length) {
+  const rows = normalizeHistoryItems(history)
+  const summary = summarizeHistory(history)
+
+  if (!rows.length) {
     return <p className="empty">No messages loaded</p>
   }
   return (
-    <div className="message-list">
-      {history.map(message => (
-        <article className={`message ${message.senderType.toLowerCase()}`} key={message.id}>
-          <header>
-            <strong>{message.senderType}</strong>
-            <span>{shortId(message.id)}</span>
-          </header>
-          {message.intent ? <span className="intent-badge">{message.intent}</span> : null}
-          <p>{message.content}</p>
-          <code>{message.traceId}</code>
-        </article>
-      ))}
+    <div className="history-view">
+      <div className="history-summary" aria-label="History summary">
+        <div><strong>{summary.total}</strong><span>Total rows</span></div>
+        <div><strong>{summary.customer}</strong><span>Customer</span></div>
+        <div><strong>{summary.bot}</strong><span>Bot</span></div>
+        <div><strong>{summary.intents.length}</strong><span>Intents</span></div>
+      </div>
+      {summary.intents.length ? (
+        <div className="history-intents" aria-label="Detected intents">
+          {summary.intents.map(intent => <span className="intent-badge" key={intent}>{intent}</span>)}
+        </div>
+      ) : null}
+      <div className="history-scroll" aria-label={`Conversation history with ${summary.total} rows`}>
+        <div className="message-list">
+          {rows.map(message => (
+            <article className={`message ${message.senderType.toLowerCase()}`} key={message.id}>
+              <header>
+                <strong>{String(message.displayIndex).padStart(2, '0')} · {message.senderType}</strong>
+                <span>{shortId(message.id)}</span>
+              </header>
+              {message.intent ? <span className="intent-badge">{message.intent}</span> : null}
+              <p>{message.content}</p>
+              {message.traceId ? <code>{message.traceId}</code> : null}
+            </article>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
