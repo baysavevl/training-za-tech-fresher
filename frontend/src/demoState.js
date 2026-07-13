@@ -365,26 +365,99 @@ export function createJourneyGuide(seed = Date.now()) {
   const script = createAutoDemoScript(seed)
 
   return {
-    title: 'Start here',
-    subtitle: 'This project teaches how a support bot handles one customer journey from first message to finished ticket.',
-    promise: 'Run one guided demo, read the customer outcome, then replace the mock services with your company systems.',
+    title: 'Customer support automation demo',
+    subtitle: 'A customer asks where order A123 is. The bot checks the order, updates the status, and creates a support ticket.',
+    promise: 'Follow the customer story first. Open the technical view only after the business flow makes sense.',
+    whatItIs: {
+      title: 'What is this project?',
+      summary: 'This is a customer support automation demo for one common order-support problem.',
+      points: [
+        'A customer asks where an order is.',
+        'The bot asks for the order code.',
+        'The bot checks the order, updates status, and creates a support ticket.'
+      ]
+    },
+    customerStory: [
+      {
+        speaker: 'Customer',
+        line: 'Where is my order?',
+        meaning: 'The customer starts with a normal support question.'
+      },
+      {
+        speaker: 'Bot',
+        line: 'Please give me the order code.',
+        meaning: 'The bot asks for the missing detail it needs.'
+      },
+      {
+        speaker: 'Customer',
+        line: 'A123',
+        meaning: 'The customer gives the order code.'
+      },
+      {
+        speaker: 'Bot',
+        line: 'Order A123 moved from packing to shipping.',
+        meaning: 'The bot checks the order and gives a useful update.'
+      },
+      {
+        speaker: 'Customer',
+        line: 'Delivery delay',
+        meaning: 'The customer explains what still needs follow-up.'
+      },
+      {
+        speaker: 'Bot',
+        line: 'I created a support ticket.',
+        meaning: 'The bot finishes by creating work for the support team.'
+      }
+    ],
+    firstSteps: [
+      {
+        title: 'Click Run the demo',
+        detail: 'The app sends the customer story for you.'
+      },
+      {
+        title: 'Read the customer story',
+        detail: 'Check the question, order code, status update, and ticket request.'
+      },
+      {
+        title: 'Read the result',
+        detail: 'Confirm the order was checked, status changed, and ticket was created.'
+      },
+      {
+        title: 'Open Technical view later',
+        detail: 'Use it only after you understand the customer flow.'
+      }
+    ],
+    canDo: [
+      {
+        title: 'Demo customer support automation',
+        detail: 'Show how one order-support conversation can finish without manual routing.'
+      },
+      {
+        title: 'Learn workflow concepts later',
+        detail: 'After the story is clear, inspect state, retries, history, and workflow rules.'
+      },
+      {
+        title: 'Connect company systems',
+        detail: 'Replace the mock chat, order lookup, and ticket creation with real services.'
+      }
+    ],
     steps: [
       {
         title: 'Understand the project',
-        goal: 'Know the job before opening any technical panels.',
-        action: 'Read this page first.',
-        result: 'You can explain the project in one sentence: a support bot checks an order, updates it, and creates a follow-up ticket.'
+        goal: 'Know the business problem before opening any technical panels.',
+        action: 'Read What is this project?',
+        result: 'You can say what the project does without using technical terms.'
       },
       {
         title: 'Run the demo',
-        goal: 'See the complete flow without setup decisions.',
+        goal: 'See the customer story happen without setup decisions.',
         action: 'Click Run the demo.',
-        result: 'The app prepares the bot, sends a five-message customer conversation, and saves the result.'
+        result: 'The app sends the order-support conversation and saves the result.'
       },
       {
         title: 'Read the result',
         goal: 'Understand what the customer experienced.',
-        action: 'Check the story, latest reply, and outcome sections.',
+        action: 'Check the customer story, latest bot reply, and outcome sections.',
         result: 'You can see whether the order was found, status was updated, ticket was created, and retry stayed safe.'
       },
       {
@@ -398,12 +471,12 @@ export function createJourneyGuide(seed = Date.now()) {
       {
         label: 'I only want to demo it',
         action: 'Run the demo',
-        detail: 'Use this when you need to show the product story quickly to teammates or stakeholders.'
+        detail: 'Use this when you need to show the customer support story quickly.'
       },
       {
         label: 'I want to learn how it works',
         action: 'Open Technical view',
-        detail: 'Use this after the demo when you want to inspect saved messages, bot decisions, and workflow setup.'
+        detail: 'Use this after the story makes sense and you want to inspect saved messages, bot decisions, and workflow setup.'
       },
       {
         label: 'I want to integrate it',

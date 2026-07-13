@@ -179,10 +179,42 @@ test('journey guide gives first-time users a clear project path', () => {
     guide.title,
     guide.subtitle,
     guide.promise,
+    guide.whatItIs.title,
+    guide.whatItIs.summary,
+    ...guide.whatItIs.points,
+    ...guide.customerStory.flatMap((turn) => [turn.speaker, turn.line, turn.meaning]),
+    ...guide.firstSteps.flatMap((step) => [step.title, step.detail]),
+    ...guide.canDo.flatMap((item) => [item.title, item.detail]),
     ...guide.steps.flatMap((step) => [step.title, step.goal, step.action, step.result]),
     ...guide.paths.flatMap((path) => [path.label, path.action, path.detail])
   ].join(' ')
 
+  assert.equal(guide.whatItIs.title, 'What is this project?')
+  assert.match(guide.whatItIs.summary, /customer support automation demo/i)
+  assert.deepEqual(guide.whatItIs.points, [
+    'A customer asks where an order is.',
+    'The bot asks for the order code.',
+    'The bot checks the order, updates status, and creates a support ticket.'
+  ])
+  assert.deepEqual(guide.customerStory.map((turn) => `${turn.speaker}: ${turn.line}`), [
+    'Customer: Where is my order?',
+    'Bot: Please give me the order code.',
+    'Customer: A123',
+    'Bot: Order A123 moved from packing to shipping.',
+    'Customer: Delivery delay',
+    'Bot: I created a support ticket.'
+  ])
+  assert.deepEqual(guide.firstSteps.map((step) => step.title), [
+    'Click Run the demo',
+    'Read the customer story',
+    'Read the result',
+    'Open Technical view later'
+  ])
+  assert.deepEqual(guide.canDo.map((item) => item.title), [
+    'Demo customer support automation',
+    'Learn workflow concepts later',
+    'Connect company systems'
+  ])
   assert.deepEqual(guide.steps.map((step) => step.title), [
     'Understand the project',
     'Run the demo',

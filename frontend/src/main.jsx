@@ -550,19 +550,17 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
   const scrollToChecklist = () => {
     document.getElementById('journey-integration-checklist')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
-  const pathActions = {
-    'Run the demo': onRunDemo,
-    'Open Technical view': onShowTechnical,
-    'Use the checklist': scrollToChecklist
-  }
 
   return (
     <div className="journey-guide">
       <section className="journey-hero">
         <div className="journey-hero-copy">
-          <p className="eyebrow">New user journey</p>
+          <p className="eyebrow">{guide.whatItIs.title}</p>
           <h3>{guide.title}</h3>
           <p>{guide.subtitle}</p>
+          <ul className="journey-proof-list">
+            {guide.whatItIs.points.map(point => <li key={point}>{point}</li>)}
+          </ul>
           <strong>{guide.promise}</strong>
           <div className="journey-actions">
             <button type="button" className="primary" onClick={onRunDemo} disabled={busy}>
@@ -577,29 +575,58 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
           </div>
         </div>
 
-        <div className="journey-progress" aria-label="Current demo progress">
-          {statusItems.map(item => (
-            <div className={item.active ? 'ready' : ''} key={item.label}>
-              <CheckCircle2 size={18} aria-hidden="true" />
-              <span>{item.label}</span>
-              <strong>{item.detail}</strong>
-            </div>
+        <div className="journey-first-steps" aria-label="Do this first">
+          <p className="eyebrow">Do this first</p>
+          <h4>Follow this order</h4>
+          <ol>
+            {guide.firstSteps.map((step, index) => (
+              <li key={step.title}>
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{step.title}</strong>
+                  <small>{step.detail}</small>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="journey-story-panel" aria-label="Customer support story">
+        <header>
+          <p className="eyebrow">Customer story</p>
+          <h4>Read this before you click anything technical</h4>
+        </header>
+        <div className="journey-story-turns">
+          {guide.customerStory.map((turn, index) => (
+            <article className={turn.speaker === 'Customer' ? 'customer' : 'bot'} key={`${turn.speaker}-${index}`}>
+              <span>{turn.speaker}</span>
+              <strong>{turn.line}</strong>
+              <p>{turn.meaning}</p>
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="journey-steps" aria-label="Project journey steps">
-        {guide.steps.map((step, index) => (
-          <article key={step.title}>
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <div>
-              <h4>{step.title}</h4>
-              <p>{step.goal}</p>
-              <strong>{step.action}</strong>
-              <small>{step.result}</small>
-            </div>
-          </article>
-        ))}
+      <section className="journey-can-do-panel">
+        <header>
+          <p className="eyebrow">What can I do with this?</p>
+          <h4>Use the project in three simple ways</h4>
+        </header>
+        <div className="journey-can-do-grid">
+          {guide.canDo.map(item => (
+            <article key={item.title}>
+              <Workflow size={18} aria-hidden="true" />
+              <h5>{item.title}</h5>
+              <p>{item.detail}</p>
+              {item.title === 'Connect company systems' ? (
+                <button type="button" onClick={scrollToChecklist}>
+                  <CheckCircle2 size={16} aria-hidden="true" /> Company checklist
+                </button>
+              ) : null}
+            </article>
+          ))}
+        </div>
       </section>
 
       <div className="journey-main">
@@ -616,6 +643,15 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
               <div className={active ? 'ready' : ''} key={label}>
                 <CheckCircle2 size={16} aria-hidden="true" />
                 <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="journey-mini-status" aria-label="Current demo progress">
+            {statusItems.map(item => (
+              <div className={item.active ? 'ready' : ''} key={item.label}>
+                <CheckCircle2 size={15} aria-hidden="true" />
+                <span>{item.label}</span>
+                <small>{item.detail}</small>
               </div>
             ))}
           </div>
@@ -640,25 +676,6 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
           </ol>
         </section>
       </div>
-
-      <section className="journey-path-panel">
-        <header>
-          <p className="eyebrow">Choose your path</p>
-          <h4>Use the same project for demo, learning, or integration</h4>
-        </header>
-        <div className="journey-paths">
-          {guide.paths.map(path => (
-            <article key={path.label}>
-              <Workflow size={18} aria-hidden="true" />
-              <h5>{path.label}</h5>
-              <p>{path.detail}</p>
-              <button type="button" onClick={pathActions[path.action] || undefined} disabled={busy && path.action === 'Run the demo'}>
-                {path.action}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
 
       <section className="journey-integration-panel" id="journey-integration-checklist">
         <header>
