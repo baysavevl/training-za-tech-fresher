@@ -1,5 +1,8 @@
 package com.zalo.training.conversation.mockchat;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zalo.training.conversation.adapter.ActionAdapter;
 import com.zalo.training.conversation.application.AutomationService;
 import com.zalo.training.conversation.application.ResourceNotFoundException;
@@ -7,6 +10,7 @@ import com.zalo.training.conversation.domain.ActionExecution;
 import com.zalo.training.conversation.domain.ActionStatus;
 import com.zalo.training.conversation.domain.Automation;
 import com.zalo.training.conversation.domain.Channel;
+import com.zalo.training.conversation.domain.ChatOutput;
 import com.zalo.training.conversation.domain.Conversation;
 import com.zalo.training.conversation.domain.ConversationSession;
 import com.zalo.training.conversation.domain.ConversationStatus;
@@ -33,8 +37,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -44,6 +50,8 @@ public class MockChatService {
 
     private static final Logger log = LoggerFactory.getLogger(MockChatService.class);
     private static final Pattern ORDER_ID_PATTERN = Pattern.compile("\\b[A-Z][0-9]{3,}\\b", Pattern.CASE_INSENSITIVE);
+    private static final String STATUS_SUCCESS = "SUCCESS";
+    private static final String STATUS_DUPLICATE = "DUPLICATE";
 
     private final CustomerRepository customerRepository;
     private final ConversationRepository conversationRepository;
@@ -56,6 +64,7 @@ public class MockChatService {
     private final WorkflowExecutionEngine executionEngine;
     private final ActionAdapter actionAdapter;
     private final ConversationLockManager lockManager;
+    private final ObjectMapper objectMapper;
 
     public MockChatService(
             CustomerRepository customerRepository,
@@ -68,7 +77,8 @@ public class MockChatService {
             AutomationService automationService,
             WorkflowExecutionEngine executionEngine,
             ActionAdapter actionAdapter,
-            ConversationLockManager lockManager
+            ConversationLockManager lockManager,
+            ObjectMapper objectMapper
     ) {
         this.customerRepository = customerRepository;
         this.conversationRepository = conversationRepository;
@@ -81,6 +91,7 @@ public class MockChatService {
         this.executionEngine = executionEngine;
         this.actionAdapter = actionAdapter;
         this.lockManager = lockManager;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -100,14 +111,26 @@ public class MockChatService {
     }
 
     private MockChatResult processLocked(InboundChatMessage inbound, Conversation conversation) {
-        var duplicateResponseId = idempotencyRepository.findResponseMessageId(conversation.id(), inbound.messageId());
-        if (duplicateResponseId.isPresent()) {
-            Message responseMessage = messageRepository.findById(duplicateResponseId.get())
+        var duplicateRecord = idempotencyRepository.findByMessage(conversation.id(), inbound.messageId());
+        if (duplicateRecord.isPresent()) {
+            Message responseMessage = messageRepository.findById(duplicateRecord.get().responseMessageId())
                     .orElseThrow(() -> new ResourceNotFoundException("duplicate response message not found"));
-            return new MockChatResult(conversation.id(), null, responseMessage.content(), null, responseMessage.id(), true);
+            ConversationSession currentSession = sessionRepository.findByConversationId(conversation.id()).orElse(null);
+            return new MockChatResult(
+                    conversation.id(),
+                    currentSession == null ? null : currentSession.id(),
+                    duplicateRecord.get().executionTraceId(),
+                    responseMessage.content(),
+                    List.of(ChatOutput.text(responseMessage.content())),
+                    currentSession == null ? null : currentSession.currentNodeId(),
+                    responseMessage.id(),
+                    true,
+                    STATUS_DUPLICATE,
+                    null
+            );
         }
 
-        Automation automation = automationService.getAutomation(inbound.automationId());
+        Automation automation = resolveAutomation(inbound);
         if (!automation.enabled() || automation.activeWorkflowVersionId() == null) {
             throw new IllegalArgumentException("automation is not enabled or has no published workflow");
         }
@@ -147,28 +170,33 @@ public class MockChatService {
                 session.createdAt(),
                 Instant.now()
         );
-        sessionRepository.update(updatedSession);
+        if (!sessionRepository.updateIfVersionMatches(updatedSession, session.version())) {
+            throw new IllegalStateException("conversation session version mismatch: " + session.id());
+        }
 
+        ChatOutput textOutput = ChatOutput.text(outcome.response());
         Message botMessage = new Message(
                 UUID.randomUUID(),
                 conversation.id(),
                 SenderType.BOT,
-                outcome.response(),
+                textOutput.text(),
                 null,
                 inbound.requestId(),
                 Instant.now()
         );
         messageRepository.save(botMessage);
 
+        UUID executionId = UUID.randomUUID();
+        String traceDetailJson = traceDetailJson(workflowVersion, session, outcome, List.of(textOutput));
         ExecutionTrace trace = new ExecutionTrace(
-                UUID.randomUUID(),
+                executionId,
                 inbound.requestId(),
                 inbound.messageId(),
                 conversation.id(),
                 updatedSession.id(),
                 outcome.nodeId(),
                 outcome.eventType(),
-                outcome.detailJson(),
+                traceDetailJson,
                 Instant.now()
         );
         traceRepository.save(trace);
@@ -179,28 +207,89 @@ public class MockChatService {
                     conversation.id(),
                     updatedSession.id(),
                     outcome.nodeId(),
-                    "MOCK_ACTION",
+                    outcome.actionName(),
                     ActionStatus.DONE,
                     "{\"input\":\"%s\"}".formatted(escapeJson(inbound.text())),
                     outcome.detailJson(),
                     1,
                     Instant.now(),
                     Instant.now()
-            ));
+                ));
         }
-        idempotencyRepository.save(conversation.id(), inbound.messageId(), userMessage.id(), botMessage.id(), Instant.now());
+        idempotencyRepository.save(conversation.id(), inbound.messageId(), userMessage.id(), botMessage.id(), executionId, Instant.now());
 
         log.info(
-                "event=mock_chat_processed request_id={} message_id={} conversation_id={} session_id={} node_id={} status={}",
+                "event=mock_chat_processed request_id={} message_id={} conversation_id={} session_id={} execution_id={} node_id={} status={}",
                 inbound.requestId(),
                 inbound.messageId(),
                 conversation.id(),
                 updatedSession.id(),
+                executionId,
                 outcome.nodeId(),
                 updatedSession.status()
         );
 
-        return new MockChatResult(conversation.id(), updatedSession.id(), outcome.response(), outcome.nodeId(), botMessage.id(), false);
+        return new MockChatResult(
+                conversation.id(),
+                updatedSession.id(),
+                executionId,
+                textOutput.text(),
+                List.of(textOutput),
+                outcome.nodeId(),
+                botMessage.id(),
+                false,
+                STATUS_SUCCESS,
+                null
+        );
+    }
+
+    private Automation resolveAutomation(InboundChatMessage inbound) {
+        if (inbound.automationId() == null) {
+            return automationService.getActiveAutomationByAccountId(inbound.accountId());
+        }
+        Automation automation = automationService.getAutomation(inbound.automationId());
+        if (inbound.accountId() != null
+                && !inbound.accountId().isBlank()
+                && !automation.accountId().equals(inbound.accountId().trim())) {
+            throw new IllegalArgumentException("automation does not belong to account");
+        }
+        return automation;
+    }
+
+    private String traceDetailJson(
+            WorkflowVersion workflowVersion,
+            ConversationSession previousSession,
+            WorkflowExecutionOutcome outcome,
+            List<ChatOutput> outputs
+    ) {
+        LinkedHashMap<String, Object> detail = new LinkedHashMap<>();
+        detail.put("workflowVersionId", workflowVersion.id());
+        detail.put("previousNodeId", previousSession.currentNodeId());
+        detail.put("currentNodeId", outcome.nodeId());
+        detail.put("nodePath", outcome.nodePath());
+        detail.put("eventType", outcome.eventType());
+        detail.put("outputs", outputs);
+        if (outcome.actionName() != null && !outcome.actionName().isBlank()) {
+            detail.put("actionName", outcome.actionName());
+        }
+        detail.put("outcome", readOutcomeDetail(outcome.detailJson()));
+        try {
+            return objectMapper.writeValueAsString(detail);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("execution trace detail is not serializable", e);
+        }
+    }
+
+    private Object readOutcomeDetail(String detailJson) {
+        if (detailJson == null || detailJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            JsonNode jsonNode = objectMapper.readTree(detailJson);
+            return jsonNode;
+        } catch (JsonProcessingException ignored) {
+            return detailJson;
+        }
     }
 
     private String actionInput(UUID conversationId, String currentText) {
@@ -316,13 +405,28 @@ public class MockChatService {
         return traceRepository.findByConversationId(conversationId);
     }
 
+    @Transactional(readOnly = true)
+    public ExecutionTrace executionTrace(UUID executionId) {
+        return traceRepository.findById(executionId)
+                .orElseThrow(() -> new ResourceNotFoundException("execution trace not found: " + executionId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExecutionTrace> sessionTrace(UUID sessionId) {
+        return traceRepository.findBySessionId(sessionId);
+    }
+
     public record MockChatResult(
             UUID conversationId,
             UUID sessionId,
+            UUID executionId,
             String response,
+            List<ChatOutput> outputs,
             String currentNodeId,
             UUID responseMessageId,
-            boolean duplicate
+            boolean duplicate,
+            String status,
+            String errorMessage
     ) {
     }
 }

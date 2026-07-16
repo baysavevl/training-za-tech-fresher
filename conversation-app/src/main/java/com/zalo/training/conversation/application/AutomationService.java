@@ -19,6 +19,8 @@ import java.util.UUID;
 @Service
 public class AutomationService {
 
+    public static final String DEFAULT_ACCOUNT_ID = "training-account";
+
     private final AutomationRepository automationRepository;
     private final WorkflowVersionRepository workflowVersionRepository;
     private final WorkflowValidator workflowValidator;
@@ -43,9 +45,9 @@ public class AutomationService {
      * change runtime behavior until validation has passed.</p>
      */
     @Transactional
-    public Automation createAutomation(String name) {
+    public Automation createAutomation(String name, String accountId) {
         Instant now = Instant.now();
-        Automation automation = new Automation(UUID.randomUUID(), name, true, null, now, now);
+        Automation automation = new Automation(UUID.randomUUID(), normalizeAccountId(accountId), name, true, null, now, now);
         automationRepository.save(automation);
         return automation;
     }
@@ -56,6 +58,7 @@ public class AutomationService {
                 .orElseThrow(() -> new ResourceNotFoundException("automation not found: " + automationId));
         Automation updated = new Automation(
                 current.id(),
+                current.accountId(),
                 name == null || name.isBlank() ? current.name() : name,
                 enabled == null ? current.enabled() : enabled,
                 current.activeWorkflowVersionId(),
@@ -112,6 +115,7 @@ public class AutomationService {
         workflowVersionRepository.publish(published);
         automationRepository.update(new Automation(
                 automation.id(),
+                automation.accountId(),
                 automation.name(),
                 automation.enabled(),
                 published.id(),
@@ -134,8 +138,18 @@ public class AutomationService {
                 .orElseThrow(() -> new ResourceNotFoundException("automation not found: " + automationId));
     }
 
+    public Automation getActiveAutomationByAccountId(String accountId) {
+        String normalizedAccountId = normalizeAccountId(accountId);
+        return automationRepository.findActiveByAccountId(normalizedAccountId)
+                .orElseThrow(() -> new ResourceNotFoundException("active automation not found for account: " + normalizedAccountId));
+    }
+
     public WorkflowVersion getWorkflowVersion(UUID workflowVersionId) {
         return workflowVersionRepository.findById(workflowVersionId)
                 .orElseThrow(() -> new ResourceNotFoundException("workflow version not found: " + workflowVersionId));
+    }
+
+    private String normalizeAccountId(String accountId) {
+        return accountId == null || accountId.isBlank() ? DEFAULT_ACCOUNT_ID : accountId.trim();
     }
 }

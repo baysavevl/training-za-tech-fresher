@@ -11,8 +11,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,11 +62,18 @@ class MockChatFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversationId").isNotEmpty())
                 .andExpect(jsonPath("$.sessionId").isNotEmpty())
+                .andExpect(jsonPath("$.executionId").isNotEmpty())
                 .andExpect(jsonPath("$.response").value("I can check an order, create a ticket, or route you to an agent. What do you need?"))
+                .andExpect(jsonPath("$.outputs.length()").value(1))
+                .andExpect(jsonPath("$.outputs[0].type").value("TEXT"))
+                .andExpect(jsonPath("$.outputs[0].text").value("I can check an order, create a ticket, or route you to an agent. What do you need?"))
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.errorMessage").value(nullValue()))
                 .andExpect(jsonPath("$.duplicate").value(false))
                 .andReturn();
 
         String conversationId = read(helloResult, "conversationId");
+        String helloExecutionId = read(helloResult, "executionId");
 
         sendMessage(conversationId, automationId, "msg-002", "request-flow-002", "order")
                 .andExpect(status().isOk())
@@ -85,10 +99,16 @@ class MockChatFlowTest {
                 .andReturn();
 
         String responseMessageId = read(ticketResult, "responseMessageId");
+        String executionId = read(ticketResult, "executionId");
 
         sendMessage(conversationId, automationId, "msg-005", "request-flow-005-duplicate", "delivery delay")
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.executionId").value(executionId))
                 .andExpect(jsonPath("$.duplicate").value(true))
+                .andExpect(jsonPath("$.status").value("DUPLICATE"))
+                .andExpect(jsonPath("$.errorMessage").value(nullValue()))
+                .andExpect(jsonPath("$.outputs[0].type").value("TEXT"))
+                .andExpect(jsonPath("$.outputs[0].text").value(containsString("Ticket TCK-1001")))
                 .andExpect(jsonPath("$.responseMessageId").value(responseMessageId))
                 .andExpect(jsonPath("$.response").value(containsString("Ticket TCK-1001")));
 
@@ -113,7 +133,113 @@ class MockChatFlowTest {
                 .andExpect(jsonPath("$.items[2].detailJson").value(containsString("\"category\":\"ORDER_STATUS\"")))
                 .andExpect(jsonPath("$.items[3].detailJson").value(containsString("\"category\":\"ORDER_STATUS_UPDATE\"")))
                 .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"category\":\"TICKET_CREATION\"")))
+                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"nodePath\":[\"ask_followup_category\",\"ticket\",\"end\"]")))
+                .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"outputs\":[{\"type\":\"TEXT\"")))
                 .andExpect(jsonPath("$.items[4].detailJson").value(containsString("\"supportCategory\":\"DELIVERY_DELAY\"")));
+
+        mockMvc.perform(get("/api/mock-chat/executions/{executionId}/trace", helloExecutionId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(helloExecutionId))
+                .andExpect(jsonPath("$.nodeId").value("menu"))
+                .andExpect(jsonPath("$.detailJson").value(containsString("\"nodePath\":[\"start\",\"menu\"]")));
+
+        mockMvc.perform(get("/api/mock-chat/sessions/{sessionId}/trace", read(helloResult, "sessionId")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(5));
+    }
+
+    @Test
+    void invalidInputUsesFallbackWithoutCompletingSession() throws Exception {
+        String automationId = publishWorkflow();
+
+        MvcResult helloResult = sendMessage(null, automationId, "fallback-msg-001", "fallback-request-001", "hello")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentNodeId").value("menu"))
+                .andReturn();
+        String conversationId = read(helloResult, "conversationId");
+
+        sendMessage(conversationId, automationId, "fallback-msg-002", "fallback-request-002", "weather")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("I did not catch that. Choose order, ticket, or agent."))
+                .andExpect(jsonPath("$.currentNodeId").value("menu_retry"))
+                .andExpect(jsonPath("$.duplicate").value(false));
+
+        mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/session", conversationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.currentNodeId").value("menu_retry"))
+                .andExpect(jsonPath("$.version").value(2));
+    }
+
+    @Test
+    void messageCanResolvePublishedWorkflowByAccountId() throws Exception {
+        String accountId = "account-runtime-session";
+        String automationId = publishWorkflow(accountId);
+
+        sendMessageByAccount(null, accountId, "account-msg-001", "account-request-001", "hello")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversationId").isNotEmpty())
+                .andExpect(jsonPath("$.sessionId").isNotEmpty())
+                .andExpect(jsonPath("$.executionId").isNotEmpty())
+                .andExpect(jsonPath("$.response").value("I can check an order, create a ticket, or route you to an agent. What do you need?"))
+                .andExpect(jsonPath("$.currentNodeId").value("menu"));
+
+        sendMessage(null, automationId, "account-msg-002", "account-request-002", "hello")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentNodeId").value("menu"));
+    }
+
+    @Test
+    void nearSimultaneousMessagesForOneConversationKeepSessionVersionConsistent() throws Exception {
+        String automationId = publishWorkflow();
+        MvcResult helloResult = sendMessage(null, automationId, "concurrent-msg-001", "concurrent-request-001", "hello")
+                .andExpect(status().isOk())
+                .andReturn();
+        String conversationId = read(helloResult, "conversationId");
+
+        int taskCount = 6;
+        CountDownLatch ready = new CountDownLatch(taskCount);
+        CountDownLatch start = new CountDownLatch(1);
+        var executor = Executors.newFixedThreadPool(taskCount);
+        List<Exception> failures = java.util.Collections.synchronizedList(new ArrayList<>());
+
+        try {
+            for (int i = 0; i < taskCount; i++) {
+                int index = i;
+                executor.submit(() -> {
+                    ready.countDown();
+                    try {
+                        start.await(2, TimeUnit.SECONDS);
+                        sendMessage(
+                                conversationId,
+                                automationId,
+                                "concurrent-msg-%03d".formatted(index + 2),
+                                "concurrent-request-%03d".formatted(index + 2),
+                                "weather"
+                        ).andExpect(status().isOk());
+                    } catch (Exception e) {
+                        failures.add(e);
+                    }
+                });
+            }
+            assertThat(ready.await(2, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            executor.shutdown();
+            assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(failures).isEmpty();
+
+        mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/session", conversationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.version").value(taskCount + 1));
+
+        mockMvc.perform(get("/api/mock-chat/conversations/{conversationId}/history", conversationId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value((taskCount + 1) * 2));
     }
 
     private ResultActions sendMessage(
@@ -137,6 +263,60 @@ class MockChatFlowTest {
                           "text": "%s"
                         }
                         """.formatted(conversationField, messageId, automationId, text)));
+    }
+
+    private ResultActions sendMessageByAccount(
+            String conversationId,
+            String accountId,
+            String messageId,
+            String requestId,
+            String text
+    ) throws Exception {
+        String conversationField = conversationId == null ? "" : """
+                                  "conversationId": "%s",
+                """.formatted(conversationId);
+        return mockMvc.perform(post("/api/mock-chat/messages")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Request-Id", requestId)
+                .content("""
+                        {
+                          "userId": "mock-user-001",
+                %s          "messageId": "%s",
+                          "accountId": "%s",
+                          "text": "%s"
+                        }
+                        """.formatted(conversationField, messageId, accountId, text)));
+    }
+
+    private String publishWorkflow() throws Exception {
+        return publishWorkflow(null);
+    }
+
+    private String publishWorkflow(String accountId) throws Exception {
+        String accountField = accountId == null ? "" : """
+                                ,
+                                  "accountId": "%s"
+                """.formatted(accountId);
+        String automationId = read(mockMvc.perform(post("/api/automations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Order support"%s
+                                }
+                                """.formatted(accountField)))
+                .andExpect(status().isCreated())
+                .andReturn(), "id");
+
+        String workflowVersionId = read(mockMvc.perform(post("/api/automations/{automationId}/workflows", automationId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(multiTurnWorkflowRequest()))
+                .andExpect(status().isCreated())
+                .andReturn(), "id");
+
+        mockMvc.perform(post("/api/automations/{automationId}/workflows/{workflowVersionId}/publish", automationId, workflowVersionId))
+                .andExpect(status().isOk());
+
+        return automationId;
     }
 
     private String multiTurnWorkflowRequest() {

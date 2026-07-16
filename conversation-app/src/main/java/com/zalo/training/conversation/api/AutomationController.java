@@ -33,7 +33,7 @@ public class AutomationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AutomationResponse create(@Valid @RequestBody CreateAutomationRequest request) {
-        return AutomationResponse.from(automationService.createAutomation(request.name()));
+        return AutomationResponse.from(automationService.createAutomation(request.name(), request.accountId()));
     }
 
     @PatchMapping("/{automationId}")
@@ -58,7 +58,7 @@ public class AutomationController {
         return WorkflowVersionResponse.from(automationService.publishWorkflowVersion(automationId, workflowVersionId));
     }
 
-    public record CreateAutomationRequest(@NotBlank String name) {
+    public record CreateAutomationRequest(@NotBlank String name, String accountId) {
     }
 
     public record UpdateAutomationRequest(String name, Boolean enabled) {
@@ -69,6 +69,7 @@ public class AutomationController {
 
     public record AutomationResponse(
             UUID id,
+            String accountId,
             String name,
             boolean enabled,
             UUID activeWorkflowVersionId,
@@ -78,6 +79,7 @@ public class AutomationController {
         static AutomationResponse from(Automation automation) {
             return new AutomationResponse(
                     automation.id(),
+                    automation.accountId(),
                     automation.name(),
                     automation.enabled(),
                     automation.activeWorkflowVersionId(),

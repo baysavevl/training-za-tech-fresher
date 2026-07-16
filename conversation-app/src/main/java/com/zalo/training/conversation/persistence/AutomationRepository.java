@@ -20,10 +20,11 @@ public class AutomationRepository {
 
     public void save(Automation automation) {
         jdbcClient.sql("""
-                        INSERT INTO automations (id, name, enabled, active_workflow_version_id, created_at, updated_at)
-                        VALUES (:id, :name, :enabled, :activeWorkflowVersionId, :createdAt, :updatedAt)
+                        INSERT INTO automations (id, account_id, name, enabled, active_workflow_version_id, created_at, updated_at)
+                        VALUES (:id, :accountId, :name, :enabled, :activeWorkflowVersionId, :createdAt, :updatedAt)
                         """)
                 .param("id", automation.id())
+                .param("accountId", automation.accountId())
                 .param("name", automation.name())
                 .param("enabled", automation.enabled())
                 .param("activeWorkflowVersionId", automation.activeWorkflowVersionId())
@@ -35,10 +36,15 @@ public class AutomationRepository {
     public void update(Automation automation) {
         jdbcClient.sql("""
                         UPDATE automations
-                        SET name = :name, enabled = :enabled, active_workflow_version_id = :activeWorkflowVersionId, updated_at = :updatedAt
+                        SET account_id = :accountId,
+                            name = :name,
+                            enabled = :enabled,
+                            active_workflow_version_id = :activeWorkflowVersionId,
+                            updated_at = :updatedAt
                         WHERE id = :id
                         """)
                 .param("id", automation.id())
+                .param("accountId", automation.accountId())
                 .param("name", automation.name())
                 .param("enabled", automation.enabled())
                 .param("activeWorkflowVersionId", automation.activeWorkflowVersionId())
@@ -48,7 +54,7 @@ public class AutomationRepository {
 
     public Optional<Automation> findById(UUID id) {
         return jdbcClient.sql("""
-                        SELECT id, name, enabled, active_workflow_version_id, created_at, updated_at
+                        SELECT id, account_id, name, enabled, active_workflow_version_id, created_at, updated_at
                         FROM automations
                         WHERE id = :id
                         """)
@@ -57,9 +63,25 @@ public class AutomationRepository {
                 .optional();
     }
 
+    public Optional<Automation> findActiveByAccountId(String accountId) {
+        return jdbcClient.sql("""
+                        SELECT id, account_id, name, enabled, active_workflow_version_id, created_at, updated_at
+                        FROM automations
+                        WHERE account_id = :accountId
+                          AND enabled = true
+                          AND active_workflow_version_id IS NOT NULL
+                        ORDER BY updated_at DESC
+                        LIMIT 1
+                        """)
+                .param("accountId", accountId)
+                .query(this::map)
+                .optional();
+    }
+
     private Automation map(ResultSet rs, int rowNum) throws SQLException {
         return new Automation(
                 rs.getObject("id", UUID.class),
+                rs.getString("account_id"),
                 rs.getString("name"),
                 rs.getBoolean("enabled"),
                 rs.getObject("active_workflow_version_id", UUID.class),

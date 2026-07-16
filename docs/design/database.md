@@ -39,6 +39,7 @@ Training point: message history is immutable append-only data in normal chat sys
 
 Top-level automation config.
 
+- `account_id`: workspace/account that owns this automation.
 - `enabled`: runtime switch.
 - `active_workflow_version_id`: exact workflow version used for new execution.
 
@@ -85,6 +86,7 @@ Columns:
 
 - `request_message_id`: original customer message row.
 - `response_message_id`: original bot response row.
+- `execution_trace_id`: original execution trace returned on duplicate replay.
 - `created_at`: first processing time.
 
 Training point: if duplicate request arrives, return the same response instead of moving the workflow again.
@@ -101,7 +103,7 @@ One row per processed inbound message.
 - `session_id`: session state row.
 - `node_id`: resulting workflow node.
 - `event_type`: `ACTION_EXECUTED`, `END`, `HANDOFF`, etc.
-- `detail_json`: compact debug detail.
+- `detail_json`: compact debug detail including previous node, current node, node path, event type, and action outcome.
 
 ### `action_executions`
 

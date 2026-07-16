@@ -85,17 +85,18 @@ Rule for fresher: controller không chứa business logic, repository không quy
 5. Find or create conversation
 6. Lock by conversation_id
 7. Check idempotency by conversation_id + external message_id
-8. Load automation and active workflow version
+8. Load automation by automation_id or account_id and active workflow version
 9. Save customer message
 10. Load or create conversation session
 11. Execute workflow from current_node_id
-12. Save updated session
-13. Save bot response message
-14. Save execution trace
-15. Save action execution when ACTION node ran
-16. Save idempotency record
-17. Log structured event
-18. Return response to Mock Chat client
+12. Save updated session with version check
+13. Build channel-independent TEXT output contract
+14. Save bot response message
+15. Save execution trace with node path and outputs
+16. Save action execution when ACTION node ran
+17. Save idempotency record with original response and execution ids
+18. Log structured event with execution_id
+19. Return response to Mock Chat client
 ```
 
 ## 5. Workflow Model
@@ -129,9 +130,24 @@ Session state lives in `conversation_sessions`:
 - `status`: `ACTIVE`, `WAITING`, `COMPLETED`, `FAILED`.
 - `version`: incremented on every state update.
 
-The execution engine is stateless. It receives `currentNodeId` and returns `WorkflowExecutionOutcome`. The service layer decides persistence and trace.
+The execution engine is stateless. It receives `currentNodeId` and returns `WorkflowExecutionOutcome`, including the node path for that execution. The service layer decides persistence and trace.
 
-## 7. Idempotency
+## 7. Output Contract
+
+Runtime currently produces a channel-independent output list with one supported type:
+
+```json
+[
+  {
+    "type": "TEXT",
+    "text": "Order A123 is PACKING."
+  }
+]
+```
+
+`MockChatController` still returns the legacy `response` string for the local UI, but the adapter-facing contract is `outputs`. Execution trace detail also stores `outputs`, so reviewers can see exactly what was produced for one `execution_id`.
+
+## 8. Idempotency
 
 `message_idempotency` has primary key:
 
@@ -140,6 +156,7 @@ The execution engine is stateless. It receives `currentNodeId` and returns `Work
 ```
 
 When the same channel message arrives twice, the system returns the original response message without creating extra user/bot messages or moving the session again.
+The duplicate response also returns the original `executionId`, so reviewers can reopen the exact trace for the first processing attempt.
 
 Training discussion:
 
@@ -147,7 +164,7 @@ Training discussion:
 - Idempotency check and session update must be inside the same consistency boundary.
 - Duplicate handling should return a useful response, not only ignore the request.
 
-## 8. Concurrency
+## 9. Concurrency
 
 The local sample uses `ConversationLockManager`:
 
@@ -157,6 +174,8 @@ ConcurrentHashMap<conversation_id, ReentrantLock>
 
 This serializes messages for the same conversation in one JVM. Different conversations can still run in parallel.
 
+Session updates also use an optimistic `conversation_sessions.version` check. The JVM lock is the main training guard for a single local instance; the version check makes stale writes explicit and is the bridge to database-first concurrency control.
+
 Production alternatives:
 
 - Optimistic locking on `conversation_sessions.version`.
@@ -164,7 +183,7 @@ Production alternatives:
 - Distributed lock by conversation id.
 - Queue partitioning by conversation id.
 
-## 9. Reliability
+## 10. Reliability
 
 Implemented:
 
@@ -172,6 +191,7 @@ Implemented:
 - Publish-time workflow validation.
 - Fallback edge for invalid user input.
 - Idempotency for duplicate message.
+- Optimistic session update guard.
 - Clear error response through `ApiExceptionHandler`.
 - Action execution record for debug.
 
@@ -183,7 +203,7 @@ Extension exercises:
 - Session cleanup job.
 - Rate limit by user/conversation/automation.
 
-## 10. Observability
+## 11. Observability
 
 Implemented:
 
@@ -192,17 +212,18 @@ Implemented:
   - `message_id`
   - `conversation_id`
   - `session_id`
+  - `execution_id`
   - `node_id`
   - `status`
-- Persistent `execution_traces` table.
-- Debug APIs for history, session, and trace.
+- Persistent `execution_traces` table with per-execution node path.
+- Debug APIs for history, session, trace by conversation, trace by execution id, and trace by session id.
 - React Automation console for workflow setup, mock chat input, session, history, and trace.
 - React Training portal for knowledge roadmap, guideline mapping, exercises, and capstone framing.
 - Spring Actuator metrics endpoint.
 
 Rule for fresher: log phải giúp trả lời “request nào, message nào, conversation nào, session nào, đang ở node nào, kết quả gì”.
 
-## 11. RPC Learning Hook
+## 12. RPC Learning Hook
 
 `intent-contract` and `intent-service` exist to discuss RPC design:
 

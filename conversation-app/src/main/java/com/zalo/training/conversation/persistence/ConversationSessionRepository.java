@@ -43,20 +43,28 @@ public class ConversationSessionRepository {
     }
 
     public void update(ConversationSession session) {
-        jdbcClient.sql("""
-                        UPDATE conversation_sessions
-                        SET current_node_id = :currentNodeId,
-                            status = :status,
-                            version = :version,
-                            updated_at = :updatedAt
-                        WHERE id = :id
-                        """)
+        if (!updateIfVersionMatches(session, session.version() - 1)) {
+            throw new IllegalStateException("conversation session version mismatch: " + session.id());
+        }
+    }
+
+    public boolean updateIfVersionMatches(ConversationSession session, int expectedVersion) {
+        int updatedRows = jdbcClient.sql("""
+                                UPDATE conversation_sessions
+                                SET current_node_id = :currentNodeId,
+                                    status = :status,
+                                    version = :version,
+                                    updated_at = :updatedAt
+                                WHERE id = :id AND version = :expectedVersion
+                                """)
                 .param("id", session.id())
                 .param("currentNodeId", session.currentNodeId())
                 .param("status", session.status().name())
                 .param("version", session.version())
                 .param("updatedAt", session.updatedAt())
+                .param("expectedVersion", expectedVersion)
                 .update();
+        return updatedRows == 1;
     }
 
     public Optional<ConversationSession> findByConversationId(UUID conversationId) {

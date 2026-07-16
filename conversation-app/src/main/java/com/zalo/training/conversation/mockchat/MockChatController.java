@@ -1,5 +1,6 @@
 package com.zalo.training.conversation.mockchat;
 
+import com.zalo.training.conversation.domain.ChatOutput;
 import com.zalo.training.conversation.domain.ConversationSession;
 import com.zalo.training.conversation.domain.ExecutionTrace;
 import com.zalo.training.conversation.domain.Message;
@@ -7,7 +8,6 @@ import com.zalo.training.conversation.domain.MessageIntent;
 import com.zalo.training.conversation.domain.SenderType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,11 +57,22 @@ public class MockChatController {
         return new TraceResponse(mockChatService.trace(conversationId).stream().map(TraceItem::from).toList());
     }
 
+    @GetMapping("/executions/{executionId}/trace")
+    public TraceItem executionTrace(@PathVariable("executionId") UUID executionId) {
+        return TraceItem.from(mockChatService.executionTrace(executionId));
+    }
+
+    @GetMapping("/sessions/{sessionId}/trace")
+    public TraceResponse sessionTrace(@PathVariable("sessionId") UUID sessionId) {
+        return new TraceResponse(mockChatService.sessionTrace(sessionId).stream().map(TraceItem::from).toList());
+    }
+
     public record MockIncomingMessageRequest(
             @NotBlank String userId,
             UUID conversationId,
             @NotBlank String messageId,
-            @NotNull UUID automationId,
+            String accountId,
+            UUID automationId,
             @NotBlank String text
     ) {
     }
@@ -69,19 +80,27 @@ public class MockChatController {
     public record MockIncomingMessageResponse(
             UUID conversationId,
             UUID sessionId,
+            UUID executionId,
             String response,
+            List<ChatOutput> outputs,
             String currentNodeId,
             UUID responseMessageId,
-            boolean duplicate
+            boolean duplicate,
+            String status,
+            String errorMessage
     ) {
         static MockIncomingMessageResponse from(MockChatService.MockChatResult result) {
             return new MockIncomingMessageResponse(
                     result.conversationId(),
                     result.sessionId(),
+                    result.executionId(),
                     result.response(),
+                    result.outputs(),
                     result.currentNodeId(),
                     result.responseMessageId(),
-                    result.duplicate()
+                    result.duplicate(),
+                    result.status(),
+                    result.errorMessage()
             );
         }
     }

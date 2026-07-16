@@ -30,6 +30,11 @@ public class WorkflowValidator {
         if (startCount != 1) {
                 errors.add("workflow must contain exactly one START node");
         }
+        boolean hasEndNode = workflow.nodes().stream()
+                .anyMatch(node -> node.type() == WorkflowNodeType.END);
+        if (!hasEndNode) {
+            errors.add("workflow must contain at least one END node");
+        }
 
         Set<String> nodeIds = new HashSet<>();
         Set<String> outgoingNodeIds = new HashSet<>();
@@ -66,8 +71,14 @@ public class WorkflowValidator {
     }
 
     private void validateNodeConfig(WorkflowDefinition.Node node, ArrayList<String> errors) {
+        if (node.type() == WorkflowNodeType.MESSAGE && node.configString("message", "").isBlank()) {
+            errors.add("MESSAGE node %s must define config.message".formatted(node.id()));
+        }
         if (node.type() == WorkflowNodeType.QUESTION && node.configString("message", "").isBlank()) {
             errors.add("QUESTION node %s must define config.message".formatted(node.id()));
+        }
+        if (node.type() == WorkflowNodeType.CONDITION && node.configString("rule", "").isBlank()) {
+            errors.add("CONDITION node %s must define config.rule".formatted(node.id()));
         }
         if (node.type() == WorkflowNodeType.ACTION && node.configString("action", "").isBlank()) {
             errors.add("ACTION node %s must define config.action".formatted(node.id()));

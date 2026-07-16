@@ -102,6 +102,8 @@ Content-Type: application/json
 
 > {%
     client.global.set("conversationId", response.body.conversationId);
+    client.global.set("executionId", response.body.executionId);
+    client.global.set("sessionId", response.body.sessionId);
 %}
 
 ### 6. Send duplicate message_id
@@ -126,7 +128,13 @@ GET {{baseUrl}}/api/mock-chat/conversations/{{conversationId}}/session
 ### 9. View execution trace
 GET {{baseUrl}}/api/mock-chat/conversations/{{conversationId}}/trace
 
-### 10. Send fallback message in another conversation
+### 10. View execution trace by execution id
+GET {{baseUrl}}/api/mock-chat/executions/{{executionId}}/trace
+
+### 11. View execution trace by session id
+GET {{baseUrl}}/api/mock-chat/sessions/{{sessionId}}/trace
+
+### 12. Send fallback message in another conversation
 POST {{baseUrl}}/api/mock-chat/messages
 X-Request-Id: request-demo-fallback
 Content-Type: application/json

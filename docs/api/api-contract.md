@@ -41,7 +41,8 @@ Request:
 
 ```json
 {
-  "name": "Order support"
+  "name": "Order support",
+  "accountId": "training-account"
 }
 ```
 
@@ -50,6 +51,7 @@ Response `201 Created`:
 ```json
 {
   "id": "uuid",
+  "accountId": "training-account",
   "name": "Order support",
   "enabled": true,
   "activeWorkflowVersionId": null,
@@ -129,7 +131,10 @@ Validation rules:
 - Node ids must not be blank or duplicated.
 - Edge endpoints must point to existing nodes.
 - Non-`END` nodes must have at least one outgoing edge.
+- Workflow must contain at least one `END` node.
+- `MESSAGE` must define `config.message`.
 - `QUESTION` must define `config.message`.
+- `CONDITION` must define `config.rule`.
 - `ACTION` must define `config.action`.
 
 Response `200 OK`:
@@ -160,10 +165,13 @@ Request:
   "userId": "mock-user-001",
   "conversationId": null,
   "messageId": "msg-001",
+  "accountId": "training-account",
   "automationId": "uuid",
   "text": "toi muon xem don hang A123"
 }
 ```
+
+`automationId` is preferred when the caller already knows the automation. If it is omitted, runtime resolves the latest enabled automation with a published workflow by `accountId`.
 
 Response `200 OK`:
 
@@ -171,23 +179,43 @@ Response `200 OK`:
 {
   "conversationId": "uuid",
   "sessionId": "uuid",
+  "executionId": "uuid",
   "response": "Order A123 dang duoc xu ly.",
+  "outputs": [
+    {
+      "type": "TEXT",
+      "text": "Order A123 dang duoc xu ly."
+    }
+  ],
   "currentNodeId": "end",
   "responseMessageId": "uuid",
-  "duplicate": false
+  "duplicate": false,
+  "status": "SUCCESS",
+  "errorMessage": null
 }
 ```
+
+`response` is kept as a legacy convenience field for the local UI. `outputs` is the channel-independent output contract. Field names follow the existing Java/React camelCase convention, so the plan's `error_message` appears as `errorMessage` in this REST API.
 
 Duplicate response example:
 
 ```json
 {
   "conversationId": "uuid",
-  "sessionId": null,
+  "sessionId": "uuid",
+  "executionId": "same original execution uuid",
   "response": "Order A123 dang duoc xu ly.",
-  "currentNodeId": null,
+  "outputs": [
+    {
+      "type": "TEXT",
+      "text": "Order A123 dang duoc xu ly."
+    }
+  ],
+  "currentNodeId": "end",
   "responseMessageId": "same original response uuid",
-  "duplicate": true
+  "duplicate": true,
+  "status": "DUPLICATE",
+  "errorMessage": null
 }
 ```
 
@@ -239,7 +267,7 @@ Response:
 }
 ```
 
-## 8. Execution Trace
+## 8. Execution Trace By Conversation
 
 ```http
 GET /api/mock-chat/conversations/{conversationId}/trace
@@ -258,14 +286,30 @@ Response:
       "sessionId": "uuid",
       "nodeId": "end",
       "eventType": "ACTION_EXECUTED",
-      "detailJson": "{\"orderId\":\"A123\",\"status\":\"PROCESSING\"}",
+      "detailJson": "{\"previousNodeId\":\"ask_order_id\",\"currentNodeId\":\"end\",\"nodePath\":[\"ask_order_id\",\"lookup\",\"end\"],\"outputs\":[{\"type\":\"TEXT\",\"text\":\"Order A123 dang duoc xu ly.\"}],\"outcome\":{\"orderId\":\"A123\",\"status\":\"PROCESSING\"}}",
       "createdAt": "2026-07-08T09:00:00Z"
     }
   ]
 }
 ```
 
-## 9. Basic Conversation API
+## 9. Execution Trace By Execution
+
+```http
+GET /api/mock-chat/executions/{executionId}/trace
+```
+
+Response `200 OK`: one trace item with the same shape as an item in conversation trace.
+
+## 10. Execution Trace By Session
+
+```http
+GET /api/mock-chat/sessions/{sessionId}/trace
+```
+
+Response `200 OK`: same shape as conversation trace, filtered by session.
+
+## 11. Basic Conversation API
 
 These endpoints are used for the introductory REST/session before workflow:
 

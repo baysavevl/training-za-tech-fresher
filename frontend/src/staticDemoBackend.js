@@ -25,6 +25,7 @@ export async function handleStaticDemoRequest(path, options = {}, storage = glob
     const now = timestamp()
     const automation = {
       id: id(),
+      accountId: body.accountId || 'training-account',
       name: body.name || 'Order support',
       enabled: true,
       activeWorkflowVersionId: null,
@@ -91,6 +92,16 @@ export async function handleStaticDemoRequest(path, options = {}, storage = glob
     return { items: state.traces.filter(item => item.conversationId === trace[1]) }
   }
 
+  const executionTrace = url.pathname.match(/^\/api\/mock-chat\/executions\/([^/]+)\/trace$/)
+  if (executionTrace && method === 'GET') {
+    return required(state.traces.find(item => item.id === executionTrace[1]), 'execution trace not found')
+  }
+
+  const sessionTrace = url.pathname.match(/^\/api\/mock-chat\/sessions\/([^/]+)\/trace$/)
+  if (sessionTrace && method === 'GET') {
+    return { items: state.traces.filter(item => item.sessionId === sessionTrace[1]) }
+  }
+
   throw new Error(`Static demo backend does not implement ${method} ${url.pathname}`)
 }
 
@@ -105,23 +116,37 @@ function processMessage(state, request, requestId) {
   state.conversations[conversationId] = conversation
 
   const idempotencyKey = `${conversationId}:${request.messageId}`
-  const duplicateResponseId = state.idempotency[idempotencyKey]
-  if (duplicateResponseId) {
+  const duplicateRecord = state.idempotency[idempotencyKey]
+  if (duplicateRecord) {
+    const responseMessageId = typeof duplicateRecord === 'string' ? duplicateRecord : duplicateRecord.responseMessageId
     const responseMessage = required(
-      state.messages.find(item => item.id === duplicateResponseId),
+      state.messages.find(item => item.id === responseMessageId),
       'duplicate response message not found'
     )
     return {
       conversationId,
       sessionId: state.sessions[conversationId]?.id || null,
+      executionId: typeof duplicateRecord === 'string' ? null : duplicateRecord.executionId,
       response: responseMessage.content,
+      outputs: textOutputs(responseMessage.content),
       currentNodeId: state.sessions[conversationId]?.currentNodeId || null,
       responseMessageId: responseMessage.id,
-      duplicate: true
+      duplicate: true,
+      status: 'DUPLICATE',
+      errorMessage: null
     }
   }
 
-  const automation = required(state.automations[request.automationId], 'automation not found')
+  const automation = request.automationId
+    ? required(state.automations[request.automationId], 'automation not found')
+    : required(
+      Object.values(state.automations).find(item =>
+        item.accountId === (request.accountId || 'training-account') &&
+        item.enabled &&
+        item.activeWorkflowVersionId
+      ),
+      'active automation not found for account'
+    )
   const workflow = required(state.workflows[automation.activeWorkflowVersionId], 'published workflow not found')
   let session = state.sessions[conversationId]
   if (!session) {
@@ -140,7 +165,8 @@ function processMessage(state, request, requestId) {
   const userMessage = message(conversationId, 'CUSTOMER', request.text, categorizeIntent(request.text), requestId)
   state.messages.push(userMessage)
 
-  const outcome = executeStaticWorkflow(session.currentNodeId, request.text, state.messages, conversationId)
+  const previousNodeId = session.currentNodeId
+  const outcome = withNodePath(executeStaticWorkflow(previousNodeId, request.text, state.messages, conversationId), previousNodeId)
   session = {
     ...session,
     currentNodeId: outcome.nodeId,
@@ -150,30 +176,82 @@ function processMessage(state, request, requestId) {
   }
   state.sessions[conversationId] = session
 
+  const outputs = textOutputs(outcome.response)
   const botMessage = message(conversationId, 'BOT', outcome.response, null, requestId)
   state.messages.push(botMessage)
+  const executionId = id()
   const trace = {
-    id: id(),
+    id: executionId,
     requestId,
     messageId: request.messageId,
     conversationId,
     sessionId: session.id,
     nodeId: outcome.nodeId,
     eventType: outcome.eventType,
-    detailJson: JSON.stringify(outcome.detail),
+    detailJson: JSON.stringify({
+      workflowVersionId: workflow.id,
+      previousNodeId,
+      currentNodeId: outcome.nodeId,
+      nodePath: outcome.nodePath,
+      eventType: outcome.eventType,
+      outputs,
+      ...(outcome.actionName ? { actionName: outcome.actionName } : {}),
+      outcome: outcome.detail
+    }),
     createdAt: timestamp()
   }
   state.traces.push(trace)
-  state.idempotency[idempotencyKey] = botMessage.id
+  state.idempotency[idempotencyKey] = {
+    responseMessageId: botMessage.id,
+    executionId
+  }
 
   return {
     conversationId,
     sessionId: session.id,
+    executionId,
     response: outcome.response,
+    outputs,
     currentNodeId: outcome.nodeId,
     responseMessageId: botMessage.id,
-    duplicate: false
+    duplicate: false,
+    status: 'SUCCESS',
+    errorMessage: null
   }
+}
+
+function textOutputs(text) {
+  return [{ type: 'TEXT', text }]
+}
+
+function withNodePath(outcome, previousNodeId) {
+  const actionNodeId = actionNodeFor(outcome.detail?.category)
+  const nodePath = [previousNodeId]
+  if (actionNodeId) {
+    nodePath.push(actionNodeId)
+  }
+  if (nodePath.at(-1) !== outcome.nodeId) {
+    nodePath.push(outcome.nodeId)
+  }
+  return {
+    ...outcome,
+    nodePath,
+    actionName: actionNodeId ? actionNameFor(actionNodeId) : null
+  }
+}
+
+function actionNodeFor(category) {
+  if (category === 'ORDER_STATUS') return 'lookup'
+  if (category === 'ORDER_STATUS_UPDATE') return 'update_status'
+  if (category === 'TICKET_CREATION') return 'ticket'
+  return null
+}
+
+function actionNameFor(nodeId) {
+  if (nodeId === 'lookup') return 'ORDER_LOOKUP'
+  if (nodeId === 'update_status') return 'ORDER_STATUS_UPDATE'
+  if (nodeId === 'ticket') return 'TICKET_CREATION'
+  return null
 }
 
 function executeStaticWorkflow(currentNodeId, input, messages, conversationId) {

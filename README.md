@@ -125,6 +125,8 @@ Các endpoint chính:
 - `GET /api/mock-chat/conversations/{conversationId}/history`
 - `GET /api/mock-chat/conversations/{conversationId}/session`
 - `GET /api/mock-chat/conversations/{conversationId}/trace`
+- `GET /api/mock-chat/executions/{executionId}/trace`
+- `GET /api/mock-chat/sessions/{sessionId}/trace`
 
 ## Tài liệu training
 
@@ -137,8 +139,9 @@ Các endpoint chính:
 
 - Client/server và API contract: controller DTO, validation, error response.
 - Workflow/state machine: `WorkflowDefinition`, `WorkflowValidator`, `WorkflowExecutionEngine`.
-- Session/concurrency: `conversation_sessions`, `ConversationLockManager`, version tăng theo từng message.
-- Idempotency: `message_idempotency` với khóa `(conversation_id, external_message_id)`.
+- Session/concurrency: `conversation_sessions`, `ConversationLockManager`, optimistic version check, version tăng theo từng message.
+- Output contract: `ChatOutput`, `OutputType.TEXT`, response `outputs/status/errorMessage`, trace detail lưu output đã tạo.
+- Idempotency: `message_idempotency` với khóa `(conversation_id, external_message_id)`, reuse response/execution id khi duplicate.
 - Adapter pattern: `ChannelAdapter`, `MockChatChannelAdapter`, `ActionAdapter`.
-- Observability: structured log, `execution_traces`, debug APIs, actuator metrics outline.
+- Observability: structured log, `execution_traces` có node path, debug APIs, actuator metrics outline.
 - Testing: unit test cho engine/validator/idempotency/concurrency và integration test cho REST flow.

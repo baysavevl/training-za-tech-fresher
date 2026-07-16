@@ -14,6 +14,7 @@ public class MockChatChannelAdapter implements ChannelAdapter<MockChatController
                 request.userId(),
                 request.conversationId(),
                 request.messageId(),
+                request.accountId(),
                 request.automationId(),
                 request.text(),
                 requestId

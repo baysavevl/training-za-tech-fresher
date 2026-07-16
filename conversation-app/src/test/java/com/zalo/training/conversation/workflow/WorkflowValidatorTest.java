@@ -62,4 +62,63 @@ class WorkflowValidatorTest {
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).contains("edge start -> missing points to a missing node");
     }
+
+    @Test
+    void rejectsWorkflowWithoutEndNode() {
+        WorkflowDefinition workflow = new WorkflowDefinition(
+                List.of(
+                        new WorkflowDefinition.Node("start", WorkflowNodeType.START, Map.of()),
+                        new WorkflowDefinition.Node("ask", WorkflowNodeType.QUESTION, Map.of("message", "Ban can ho tro gi?"))
+                ),
+                List.of(
+                        new WorkflowDefinition.Edge("start", "ask", WorkflowMatchType.ALWAYS, ""),
+                        new WorkflowDefinition.Edge("ask", "ask", WorkflowMatchType.FALLBACK, "")
+                )
+        );
+
+        WorkflowValidationResult result = validator.validate(workflow);
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).contains("workflow must contain at least one END node");
+    }
+
+    @Test
+    void rejectsMessageNodeWithoutMessage() {
+        WorkflowDefinition workflow = new WorkflowDefinition(
+                List.of(
+                        new WorkflowDefinition.Node("start", WorkflowNodeType.START, Map.of()),
+                        new WorkflowDefinition.Node("message", WorkflowNodeType.MESSAGE, Map.of()),
+                        new WorkflowDefinition.Node("end", WorkflowNodeType.END, Map.of())
+                ),
+                List.of(
+                        new WorkflowDefinition.Edge("start", "message", WorkflowMatchType.ALWAYS, ""),
+                        new WorkflowDefinition.Edge("message", "end", WorkflowMatchType.ALWAYS, "")
+                )
+        );
+
+        WorkflowValidationResult result = validator.validate(workflow);
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).contains("MESSAGE node message must define config.message");
+    }
+
+    @Test
+    void rejectsConditionNodeWithoutRule() {
+        WorkflowDefinition workflow = new WorkflowDefinition(
+                List.of(
+                        new WorkflowDefinition.Node("start", WorkflowNodeType.START, Map.of()),
+                        new WorkflowDefinition.Node("condition", WorkflowNodeType.CONDITION, Map.of()),
+                        new WorkflowDefinition.Node("end", WorkflowNodeType.END, Map.of())
+                ),
+                List.of(
+                        new WorkflowDefinition.Edge("start", "condition", WorkflowMatchType.ALWAYS, ""),
+                        new WorkflowDefinition.Edge("condition", "end", WorkflowMatchType.FALLBACK, "")
+                )
+        );
+
+        WorkflowValidationResult result = validator.validate(workflow);
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).contains("CONDITION node condition must define config.rule");
+    }
 }

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -51,6 +52,29 @@ public class ExecutionTraceRepository {
                 .param("conversationId", conversationId)
                 .query(this::map)
                 .list();
+    }
+
+    public List<ExecutionTrace> findBySessionId(UUID sessionId) {
+        return jdbcClient.sql("""
+                        SELECT *
+                        FROM execution_traces
+                        WHERE session_id = :sessionId
+                        ORDER BY created_at ASC
+                        """)
+                .param("sessionId", sessionId)
+                .query(this::map)
+                .list();
+    }
+
+    public Optional<ExecutionTrace> findById(UUID executionId) {
+        return jdbcClient.sql("""
+                        SELECT *
+                        FROM execution_traces
+                        WHERE id = :executionId
+                        """)
+                .param("executionId", executionId)
+                .query(this::map)
+                .optional();
     }
 
     private ExecutionTrace map(ResultSet rs, int rowNum) throws SQLException {

@@ -56,12 +56,20 @@ test('static demo backend runs the categorized automation flow and duplicate rep
 
   assert.match(response.response, /Ticket TCK-1001/)
   assert.match(response.response, /DELIVERY_DELAY/)
+  assert.deepEqual(response.outputs, [
+    { type: 'TEXT', text: response.response }
+  ])
+  assert.equal(response.status, 'SUCCESS')
+  assert.equal(response.errorMessage, null)
   assert.equal(response.currentNodeId, 'end')
   assert.equal(response.duplicate, false)
+  assert.ok(response.executionId)
 
   const history = await request(`/api/mock-chat/conversations/${conversationId}/history`, {}, storage)
   const trace = await request(`/api/mock-chat/conversations/${conversationId}/trace`, {}, storage)
   const session = await request(`/api/mock-chat/conversations/${conversationId}/session`, {}, storage)
+  const executionTrace = await request(`/api/mock-chat/executions/${response.executionId}/trace`, {}, storage)
+  const sessionTrace = await request(`/api/mock-chat/sessions/${session.id}/trace`, {}, storage)
 
   assert.equal(history.items.length, 10)
   assert.deepEqual(history.items.filter(item => item.senderType === 'CUSTOMER').map(item => item.intent), [
@@ -73,6 +81,10 @@ test('static demo backend runs the categorized automation flow and duplicate rep
   ])
   assert.equal(trace.items.length, 5)
   assert.match(trace.items.at(-1).detailJson, /"supportCategory":"DELIVERY_DELAY"/)
+  assert.match(trace.items.at(-1).detailJson, /"nodePath":\["ask_followup_category","ticket","end"\]/)
+  assert.match(trace.items.at(-1).detailJson, /"outputs":\[\{"type":"TEXT"/)
+  assert.equal(executionTrace.id, response.executionId)
+  assert.equal(sessionTrace.items.length, 5)
   assert.equal(session.status, 'COMPLETED')
   assert.equal(session.version, 5)
 
@@ -90,8 +102,41 @@ test('static demo backend runs the categorized automation flow and duplicate rep
   const historyAfterDuplicate = await request(`/api/mock-chat/conversations/${conversationId}/history`, {}, storage)
 
   assert.equal(duplicate.duplicate, true)
+  assert.deepEqual(duplicate.outputs, [
+    { type: 'TEXT', text: duplicate.response }
+  ])
+  assert.equal(duplicate.status, 'DUPLICATE')
+  assert.equal(duplicate.errorMessage, null)
   assert.equal(duplicate.responseMessageId, response.responseMessageId)
+  assert.equal(duplicate.executionId, response.executionId)
   assert.equal(historyAfterDuplicate.items.length, 10)
+})
+
+test('static demo backend resolves published automation by account id', async () => {
+  const storage = new MemoryStorage()
+  const automation = await request('/api/automations', {
+    method: 'POST',
+    body: JSON.stringify({ name: 'Order support', accountId: 'static-account-001' })
+  }, storage)
+  const workflow = await request(`/api/automations/${automation.id}/workflows`, {
+    method: 'POST',
+    body: JSON.stringify({ definition: SAMPLE_WORKFLOW })
+  }, storage)
+  await request(`/api/automations/${automation.id}/workflows/${workflow.id}/publish`, { method: 'POST' }, storage)
+
+  const response = await request('/api/mock-chat/messages', {
+    method: 'POST',
+    headers: { 'X-Request-Id': 'request-static-account-001' },
+    body: JSON.stringify({
+      userId: 'mock-user-001',
+      messageId: 'msg-static-account-001',
+      accountId: 'static-account-001',
+      text: 'hello'
+    })
+  }, storage)
+
+  assert.equal(response.currentNodeId, 'menu')
+  assert.ok(response.executionId)
 })
 
 async function request(path, options, storage) {

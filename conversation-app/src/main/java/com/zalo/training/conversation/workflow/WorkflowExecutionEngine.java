@@ -5,7 +5,9 @@ import com.zalo.training.conversation.adapter.ActionResult;
 import com.zalo.training.conversation.domain.SessionStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -28,26 +30,31 @@ public class WorkflowExecutionEngine {
     ) {
         WorkflowDefinition.Node current = workflow.node(currentNodeId)
                 .orElseGet(() -> startNode(workflow));
+        ArrayList<String> nodePath = new ArrayList<>();
+        nodePath.add(current.id());
 
         if (current.type() == WorkflowNodeType.START) {
             current = nextNode(workflow, current, input);
-            return enterNode(workflow, current, input, actionAdapter);
+            addPathNode(nodePath, current);
+            return enterNode(workflow, current, input, actionAdapter, nodePath);
         }
 
         if (current.type() == WorkflowNodeType.MESSAGE
                 || current.type() == WorkflowNodeType.QUESTION
                 || current.type() == WorkflowNodeType.CONDITION) {
             current = nextNode(workflow, current, input);
+            addPathNode(nodePath, current);
         }
 
-        return enterNode(workflow, current, input, actionAdapter);
+        return enterNode(workflow, current, input, actionAdapter, nodePath);
     }
 
     private WorkflowExecutionOutcome enterNode(
             WorkflowDefinition workflow,
             WorkflowDefinition.Node node,
             String input,
-            ActionAdapter actionAdapter
+            ActionAdapter actionAdapter,
+            ArrayList<String> nodePath
     ) {
         if (node.type() == WorkflowNodeType.ACTION) {
             String actionName = node.configString("action", "");
@@ -57,19 +64,26 @@ public class WorkflowExecutionEngine {
                     .findFirst()
                     .flatMap(edge -> workflow.node(edge.to()))
                     .orElse(node);
+            addPathNode(nodePath, next);
             SessionStatus status = next.type() == WorkflowNodeType.END ? SessionStatus.COMPLETED : SessionStatus.ACTIVE;
-            return new WorkflowExecutionOutcome(next.id(), result.response(), status, "ACTION_EXECUTED", result.responseJson());
+            return new WorkflowExecutionOutcome(next.id(), result.response(), status, "ACTION_EXECUTED", result.responseJson(), List.copyOf(nodePath), actionName);
         }
         if (node.type() == WorkflowNodeType.HANDOFF) {
             String response = node.configString("message", "Minh se chuyen hoi thoai nay cho nhan vien ho tro.");
-            return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.WAITING, "HANDOFF", "{\"status\":\"waiting_agent\"}");
+            return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.WAITING, "HANDOFF", "{\"status\":\"waiting_agent\"}", List.copyOf(nodePath), null);
         }
         if (node.type() == WorkflowNodeType.END) {
             String response = node.configString("message", "Da ket thuc hoi thoai.");
-            return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.COMPLETED, "END", "{\"status\":\"completed\"}");
+            return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.COMPLETED, "END", "{\"status\":\"completed\"}", List.copyOf(nodePath), null);
         }
         String response = node.configString("message", "");
-        return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.ACTIVE, node.type().name(), detailJson(node));
+        return new WorkflowExecutionOutcome(node.id(), response, SessionStatus.ACTIVE, node.type().name(), detailJson(node), List.copyOf(nodePath), null);
+    }
+
+    private void addPathNode(ArrayList<String> nodePath, WorkflowDefinition.Node node) {
+        if (nodePath.isEmpty() || !nodePath.getLast().equals(node.id())) {
+            nodePath.add(node.id());
+        }
     }
 
     private WorkflowDefinition.Node startNode(WorkflowDefinition workflow) {

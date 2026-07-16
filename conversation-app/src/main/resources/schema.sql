@@ -38,6 +38,7 @@ CREATE TABLE messages (
 
 CREATE TABLE automations (
     id UUID PRIMARY KEY,
+    account_id VARCHAR(128) NOT NULL,
     name VARCHAR(255) NOT NULL,
     enabled BOOLEAN NOT NULL,
     active_workflow_version_id UUID,
@@ -77,6 +78,7 @@ CREATE TABLE message_idempotency (
     external_message_id VARCHAR(128) NOT NULL,
     request_message_id UUID NOT NULL REFERENCES messages(id),
     response_message_id UUID REFERENCES messages(id),
+    execution_trace_id UUID,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (conversation_id, external_message_id)
 );
@@ -92,6 +94,10 @@ CREATE TABLE execution_traces (
     detail_json TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
+
+ALTER TABLE message_idempotency
+    ADD CONSTRAINT fk_idempotency_execution_trace
+    FOREIGN KEY (execution_trace_id) REFERENCES execution_traces(id);
 
 CREATE TABLE action_executions (
     id UUID PRIMARY KEY,

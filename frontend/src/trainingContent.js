@@ -33,7 +33,7 @@ export const trainingTopics = [
       'Choose the smallest consistency boundary: this project serializes by conversation_id rather than locking the whole automation.',
       'Place duplicate detection inside the protected block so two retries cannot both pass the idempotency check.',
       'Explain the local lock limitation clearly: it works for one JVM demo, while production needs transaction or distributed coordination.',
-      'Prove the behavior by running the duplicate replay flow and checking responseMessageId plus history length before discussing optimizations.'
+      'Prove the behavior by running the duplicate replay flow and checking responseMessageId, executionId, and history length before discussing optimizations.'
     ],
     productFlows: [
       {
@@ -585,39 +585,45 @@ export const projectBrief = {
           ]
         },
         {
-          title: 'Session, Concurrency & Reliability',
+          title: 'Runtime, Session & Execution History',
           items: [
-            'Quản lý trạng thái hội thoại theo từng user/conversation.',
-            'Xử lý nhiều conversation chạy song song.',
-            'Xử lý duplicate message bằng message_id/idempotency.',
-            'Đảm bảo session không bị update sai khi nhiều message đến gần nhau.',
-            'Xử lý lỗi rõ ràng khi workflow, session hoặc action bị lỗi.'
+            'Load workflow version đã publish và session hiện tại.',
+            'Execute node theo state machine, condition/action/fallback.',
+            'Cập nhật waiting state/current node/session status.',
+            'Tạo execution_id và lưu node-by-node execution trace.',
+            'Expose API tra cứu trace theo conversation, execution và session.'
           ],
           coverage: [
             {
-              label: 'Per-conversation lock',
-              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/ConversationLockManager.java',
+              label: 'Runtime orchestration',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
               status: 'implemented'
             },
             {
-              label: 'Session and idempotency schema',
+              label: 'Execution trace repository',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/ExecutionTraceRepository.java',
+              status: 'implemented'
+            },
+            {
+              label: 'Session, message, trace, and idempotency schema',
               source: 'conversation-app/src/main/resources/schema.sql',
               status: 'implemented'
             },
             {
-              label: 'Duplicate message test',
+              label: 'Runtime/session/history integration test',
               source: 'conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java',
               status: 'implemented'
             }
           ]
         },
         {
-          title: 'Action, Adapter & Observability',
+          title: 'Channel Adapter, Output & Reliability',
           items: [
-            'Thiết kế Channel Adapter để tách logic chat khỏi automation engine.',
-            'Xây dựng ACTION node gọi mock external service như order lookup, ticket creation hoặc webhook.',
-            'Ghi structured log với request_id, message_id, conversation_id, session_id, node_id.',
-            'Cung cấp API xem conversation history, current session và execution trace.'
+            'REST API mô phỏng OA inbound message và chuẩn hóa payload thành event nội bộ.',
+            'Output contract hỗ trợ TEXT và không phụ thuộc trực tiếp vào Channel Adapter.',
+            'Response trả đúng conversation/session/execution cùng outputs/status/errorMessage.',
+            'Message history, idempotency, duplicate replay và concurrent message test.',
+            'Correlation ID/structured log nối được request qua adapter, service, history và trace.'
           ],
           coverage: [
             {
@@ -626,18 +632,18 @@ export const projectBrief = {
               status: 'implemented'
             },
             {
-              label: 'Action adapter contract',
-              source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/ActionAdapter.java',
+              label: 'Mock Chat channel adapter',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatChannelAdapter.java',
               status: 'implemented'
             },
             {
-              label: 'Mock external action implementation',
-              source: 'conversation-app/src/main/java/com/zalo/training/conversation/adapter/MockActionAdapter.java',
+              label: 'TEXT output contract',
+              source: 'conversation-app/src/main/java/com/zalo/training/conversation/domain/ChatOutput.java',
               status: 'implemented'
             },
             {
-              label: 'Trace/log/debug APIs',
-              source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatController.java',
+              label: 'Adapter/output/reliability integration test',
+              source: 'conversation-app/src/test/java/com/zalo/training/conversation/mockchat/MockChatFlowTest.java',
               status: 'implemented'
             }
           ]
@@ -698,7 +704,7 @@ export const projectBrief = {
       summary: 'Concrete deliverables that must exist in the repository and local demo before the mentoring program is considered complete.',
       items: [
         'Source code backend chạy được local bằng Docker Compose hoặc setup guide rõ ràng.',
-        'Có Mock Chat Service để demo user gửi message và nhận response.',
+        'Có Mock Chat Service và Channel Adapter để demo user gửi message, nhận TEXT output contract và response.',
         'Có API quản lý automation, workflow và publish workflow version.',
         'Có API nhận incoming message và xử lý automation flow.',
         'Có database schema cho automation, workflow, session, message history, execution trace và action execution.',
@@ -961,29 +967,29 @@ export const learningSessions = [
     duration: '90 min',
     topicId: 'pc',
     title: 'Idempotency',
-    demo: 'Replay the same message ID and verify that the response is reused without duplicate history rows.',
+    demo: 'Replay the same message ID and verify that the response and execution id are reused without duplicate history rows.',
     lesson: 'Distributed producers retry. A backend should treat duplicate delivery as a normal event, not as a rare bug, and return the original outcome safely.',
     reading: ['MessageIdempotencyRepository.java', 'MockChatFlowTest.java'],
-    lab: ['Send a message once.', 'Replay the same message ID and confirm History does not grow.'],
+    lab: ['Send a message once.', 'Replay the same message ID and confirm History does not grow.', 'Open the reused execution trace by executionId.'],
     appliedExample: {
       problem: 'A chat platform can retry the same message after timeout, so the backend may receive duplicate delivery.',
-      projectApplication: 'MockChatService checks message_idempotency before executing workflow and returns the original bot response when the message_id was already processed.',
+      projectApplication: 'MockChatService checks message_idempotency before executing workflow and returns the original bot response plus execution id when the message_id was already processed.',
       mentorExplanation: 'Teach idempotency as a normal API behavior: duplicate requests should be safe and should return useful information, not corrupt session state.'
     },
     codeWalkthrough: [
       {
         source: 'conversation-app/src/main/java/com/zalo/training/conversation/mockchat/MockChatService.java',
         symbol: 'processLocked(...) duplicate branch',
-        snippet: 'idempotencyRepository.findResponseMessageId(conversation.id(), inbound.messageId())',
+        snippet: 'idempotencyRepository.findByMessage(conversation.id(), inbound.messageId())',
         responsibility: 'Detects duplicate delivery before saving new messages or moving the session.',
         why: 'The duplicate branch must run inside the conversation consistency boundary to avoid race conditions.',
         explain: 'Replay the same message id and ask why the service returns the old response instead of silently ignoring it.'
       },
       {
         source: 'conversation-app/src/main/java/com/zalo/training/conversation/persistence/MessageIdempotencyRepository.java',
-        symbol: 'findResponseMessageId(...) / save(...)',
-        snippet: 'conversation_id + external_message_id',
-        responsibility: 'Reads and writes the durable mapping from external message id to response message id.',
+        symbol: 'findByMessage(...) / save(...)',
+        snippet: 'conversation_id + external_message_id -> response_message_id + execution_trace_id',
+        responsibility: 'Reads and writes the durable mapping from external message id to response message id and execution trace id.',
         why: 'A durable idempotency key survives process restarts and documents retry behavior.',
         explain: 'Ask the fresher which table row proves a retry was already handled.'
       },
