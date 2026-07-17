@@ -1701,6 +1701,206 @@ label {
   color: var(--green);
 }
 
+.live-chat-panel {
+  border-left: 6px solid var(--blue);
+}
+
+.live-chat-layout {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+}
+
+.live-chat-window {
+  align-content: start;
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  max-height: 440px;
+  min-height: 280px;
+  overflow: auto;
+  padding: 14px;
+}
+
+.chat-bubble {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+  max-width: min(78%, 720px);
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.chat-bubble.customer {
+  background: #e8f0fe;
+  border-color: #c6dafc;
+  justify-self: end;
+}
+
+.chat-bubble.bot {
+  background: #e6f4ea;
+  border-color: #ceead6;
+  justify-self: start;
+}
+
+.chat-bubble strong,
+.live-chat-empty strong {
+  color: var(--text);
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.chat-bubble p,
+.live-chat-empty p {
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-bubble small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.live-chat-empty {
+  align-self: center;
+  color: var(--muted);
+  justify-self: center;
+  max-width: 360px;
+  text-align: center;
+}
+
+.live-chat-empty svg {
+  color: var(--blue);
+  margin-bottom: 8px;
+}
+
+.live-chat-controls {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.live-chat-actions,
+.quick-message-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-chat-actions button {
+  flex: 1 1 150px;
+}
+
+.live-chat-composer {
+  display: grid;
+  gap: 10px;
+}
+
+.live-chat-composer textarea {
+  min-height: 92px;
+}
+
+.quick-message-row button {
+  background: #ffffff;
+  font-size: 13px;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.flow-step-panel {
+  border-left: 6px solid #fbbc04;
+}
+
+.flow-step-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-step-list li {
+  background: #f8fafd;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  min-width: 0;
+  padding: 12px;
+}
+
+.flow-step-list.preview li {
+  background: #ffffff;
+}
+
+.flow-step-number {
+  align-items: center;
+  background: #e8f0fe;
+  border-radius: 8px;
+  color: var(--blue);
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 900;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.flow-step-body {
+  min-width: 0;
+}
+
+.flow-step-title {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr);
+}
+
+.flow-step-title strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.flow-step-title code {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--code);
+  display: block;
+  font-size: 12px;
+  padding: 6px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.flow-step-body p {
+  color: var(--muted);
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+
+.flow-step-body small {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.flow-signal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .friendly-latest-reply {
   background: #f8fafd;
   border: 1px solid var(--line);
@@ -3147,6 +3347,7 @@ code {
   .journey-main,
   .friendly-hero,
   .friendly-layout,
+  .live-chat-layout,
   .friendly-explainer dl,
   .brief-heading,
   .brief-group-grid,
@@ -3241,6 +3442,7 @@ code {
   .journey-integration-panel header,
   .friendly-hero,
   .friendly-section header,
+  .flow-step-title,
   .topic-header,
   .session-summary,
   .source-viewer header,
@@ -3295,6 +3497,7 @@ code {
   .journey-checklist,
   .friendly-step-strip,
   .friendly-explainer dl,
+  .live-chat-layout,
   .entry-grid,
   .study-grid,
   .demo-progress,
@@ -3318,7 +3521,16 @@ code {
   }
 
   .journey-actions,
-  .friendly-actions {
+  .friendly-actions,
+  .live-chat-actions {
+    display: grid;
+  }
+
+  .chat-bubble {
+    max-width: 100%;
+  }
+
+  .quick-message-row {
     display: grid;
   }
 

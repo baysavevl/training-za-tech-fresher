@@ -9,6 +9,7 @@ import {
   createAutoDemoMessageFields,
   createAutoDemoScript,
   createFriendlyDemoGuide,
+  createFlowStepLog,
   createJourneyGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
@@ -255,6 +256,78 @@ test('history helpers preserve every message row and expose readable summary cou
   assert.equal(summary.customer, 7)
   assert.equal(summary.bot, 7)
   assert.deepEqual(summary.intents, ['ORDER_STATUS_REQUEST'])
+})
+
+test('flow step log pairs each customer turn with runtime signal details', () => {
+  const history = [
+    {
+      id: 'customer-1',
+      senderType: 'CUSTOMER',
+      content: 'A123',
+      intent: 'ORDER_ID_PROVIDED',
+      traceId: 'request-003'
+    },
+    {
+      id: 'bot-1',
+      senderType: 'BOT',
+      content: 'Order A123 is PACKING. Reply update for the latest status, ticket to create a follow-up, or done.',
+      traceId: 'request-003'
+    }
+  ]
+  const trace = [
+    {
+      id: 'execution-1',
+      requestId: 'request-003',
+      messageId: 'msg-003',
+      eventType: 'ACTION_EXECUTED',
+      nodeId: 'offer_update',
+      detailJson: JSON.stringify({
+        previousNodeId: 'ask_order_id',
+        currentNodeId: 'offer_update',
+        nodePath: ['ask_order_id', 'lookup', 'offer_update'],
+        actionName: 'ORDER_LOOKUP',
+        outcome: {
+          category: 'ORDER_STATUS',
+          orderId: 'A123',
+          status: 'PACKING'
+        }
+      })
+    }
+  ]
+
+  const [step] = createFlowStepLog(history, trace)
+
+  assert.equal(step.stepNumber, 1)
+  assert.equal(step.customerText, 'A123')
+  assert.equal(step.botText, 'Order A123 is PACKING. Reply update for the latest status, ticket to create a follow-up, or done.')
+  assert.equal(step.intent, 'ORDER_ID_PROVIDED')
+  assert.equal(step.eventType, 'ACTION_EXECUTED')
+  assert.deepEqual(step.nodePath, ['ask_order_id', 'lookup', 'offer_update'])
+  assert.equal(step.actionName, 'ORDER_LOOKUP')
+  assert.equal(step.category, 'ORDER_STATUS')
+  assert.equal(step.orderId, 'A123')
+  assert.equal(step.status, 'PACKING')
+  assert.deepEqual(step.signalChips, ['ORDER_ID_PROVIDED', 'ORDER_STATUS', 'ORDER_LOOKUP', 'order A123', 'PACKING'])
+})
+
+test('flow step log still shows trace rows when history is missing or detail JSON is invalid', () => {
+  const [step] = createFlowStepLog([], [
+    {
+      id: 'execution-2',
+      requestId: 'request-004',
+      messageId: 'msg-004',
+      eventType: 'QUESTION',
+      nodeId: 'ask_followup_category',
+      detailJson: '{invalid'
+    }
+  ])
+
+  assert.equal(step.stepNumber, 1)
+  assert.equal(step.customerText, '')
+  assert.equal(step.botText, '')
+  assert.equal(step.eventType, 'QUESTION')
+  assert.deepEqual(step.nodePath, ['ask_followup_category'])
+  assert.deepEqual(step.signalChips, ['QUESTION'])
 })
 
 test('workflow operation response does not replace the last chat response', () => {

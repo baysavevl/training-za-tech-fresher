@@ -26,6 +26,7 @@ import {
   createManualMessageFields,
   createAutoDemoScript,
   createFriendlyDemoGuide,
+  createFlowStepLog,
   createJourneyGuide,
   createProjectFlowLanes,
   duplicateReplayFields,
@@ -172,11 +173,12 @@ function Dashboard({ navigate }) {
     return result
   }
 
-  async function sendMessage(duplicate = false) {
+  async function sendMessage(duplicate = false, textOverride = null) {
     const duplicateFields = duplicate ? duplicateReplayFields(state) : null
     const fallbackFields = createManualMessageFields(state.manualSequence || 1)
     const messageId = duplicate ? duplicateFields.messageId : (state.messageId.trim() || fallbackFields.messageId)
     const requestId = duplicate ? duplicateFields.requestId : (state.requestId.trim() || fallbackFields.requestId)
+    const textToSend = textOverride ?? state.text
     const result = await run(duplicate ? 'Duplicate message replayed' : 'Message processed', () => request('/api/mock-chat/messages', {
       method: 'POST',
       headers: { 'X-Request-Id': requestId },
@@ -185,12 +187,13 @@ function Dashboard({ navigate }) {
         conversationId: state.conversationId || null,
         messageId,
         automationId: state.automationId,
-        text: state.text
+        text: textToSend
       })
     }))
     if (result) {
       patch({
         conversationId: result.conversationId,
+        text: textToSend,
         ...(!duplicate && !result.duplicate
           ? advanceManualMessageFields(state, { sentMessageId: messageId, sentRequestId: requestId })
           : {})
@@ -360,11 +363,16 @@ function Dashboard({ navigate }) {
             busy={busy}
             history={history}
             idsReady={idsReady}
+            onPatch={patch}
+            onPrepare={() => quickSetup(false)}
+            onReplayDuplicate={() => sendMessage(true)}
             onRunDemo={() => quickSetup(true)}
+            onSendMessage={(text) => sendMessage(false, text)}
             onShowSimple={() => setViewMode('simple')}
             onShowTechnical={() => setViewMode('technical')}
             responses={responses}
             session={session}
+            state={state}
             trace={trace}
           />
         ) : viewMode === 'simple' ? (
@@ -372,11 +380,15 @@ function Dashboard({ navigate }) {
             busy={busy}
             history={history}
             idsReady={idsReady}
+            onPatch={patch}
             onPrepare={() => quickSetup(false)}
+            onReplayDuplicate={() => sendMessage(true)}
             onRunDemo={() => quickSetup(true)}
+            onSendMessage={(text) => sendMessage(false, text)}
             onShowTechnical={() => setViewMode('technical')}
             responses={responses}
             session={session}
+            state={state}
             trace={trace}
           />
         ) : (
@@ -512,7 +524,22 @@ function Dashboard({ navigate }) {
   )
 }
 
-function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShowTechnical, responses, session, trace }) {
+function JourneyGuide({
+  busy,
+  history,
+  idsReady,
+  onPatch,
+  onPrepare,
+  onReplayDuplicate,
+  onRunDemo,
+  onSendMessage,
+  onShowSimple,
+  onShowTechnical,
+  responses,
+  session,
+  state,
+  trace
+}) {
   const guide = createJourneyGuide(123456)
   const rows = normalizeHistoryItems(history)
   const summary = summarizeHistory(history)
@@ -591,6 +618,20 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
           </ol>
         </div>
       </section>
+
+      <LiveChatConsole
+        busy={busy}
+        history={history}
+        idsReady={idsReady}
+        onPatch={onPatch}
+        onPrepare={onPrepare}
+        onReplayDuplicate={onReplayDuplicate}
+        onRunDemo={onRunDemo}
+        onSendMessage={onSendMessage}
+        state={state}
+      />
+
+      <FlowStepLog history={history} trace={trace} />
 
       <section className="journey-story-panel" aria-label="Customer support story">
         <header>
@@ -698,7 +739,21 @@ function JourneyGuide({ busy, history, idsReady, onRunDemo, onShowSimple, onShow
   )
 }
 
-function FriendlyConsole({ busy, history, idsReady, onPrepare, onRunDemo, onShowTechnical, responses, session, trace }) {
+function FriendlyConsole({
+  busy,
+  history,
+  idsReady,
+  onPatch,
+  onPrepare,
+  onReplayDuplicate,
+  onRunDemo,
+  onSendMessage,
+  onShowTechnical,
+  responses,
+  session,
+  state,
+  trace
+}) {
   const guide = createFriendlyDemoGuide(123456)
   const rows = normalizeHistoryItems(history)
   const summary = summarizeHistory(history)
@@ -750,6 +805,20 @@ function FriendlyConsole({ busy, history, idsReady, onPrepare, onRunDemo, onShow
           </article>
         ))}
       </section>
+
+      <LiveChatConsole
+        busy={busy}
+        history={history}
+        idsReady={idsReady}
+        onPatch={onPatch}
+        onPrepare={onPrepare}
+        onReplayDuplicate={onReplayDuplicate}
+        onRunDemo={onRunDemo}
+        onSendMessage={onSendMessage}
+        state={state}
+      />
+
+      <FlowStepLog history={history} trace={trace} />
 
       <div className="friendly-layout">
         <section className="friendly-section friendly-conversation">
@@ -809,6 +878,171 @@ function FriendlyConsole({ busy, history, idsReady, onPrepare, onRunDemo, onShow
         </dl>
       </section>
     </div>
+  )
+}
+
+function LiveChatConsole({
+  busy,
+  history,
+  idsReady,
+  onPatch,
+  onPrepare,
+  onReplayDuplicate,
+  onRunDemo,
+  onSendMessage,
+  state
+}) {
+  const rows = normalizeHistoryItems(history)
+  const summary = summarizeHistory(history)
+  const hasTranscript = rows.length > 0
+  const canSend = idsReady.automation && idsReady.workflow && !busy
+  const quickMessages = createAutoDemoScript(123456).map(step => step.text)
+
+  function submitMessage(event) {
+    event.preventDefault()
+    const text = state.text.trim()
+    if (!text || !canSend) {
+      return
+    }
+    onSendMessage(text)
+  }
+
+  return (
+    <section className="friendly-section live-chat-panel" aria-label="Easy chat console">
+      <header>
+        <div>
+          <p className="eyebrow">Chat zone</p>
+          <h4>Send customer messages here first</h4>
+        </div>
+        <span>{hasTranscript ? `${summary.total} messages` : 'Ready path'}</span>
+      </header>
+
+      <div className="live-chat-layout">
+        <div className="live-chat-window" aria-label="Conversation transcript">
+          {hasTranscript ? (
+            rows.map(row => (
+              <article className={`chat-bubble ${row.senderType === 'CUSTOMER' ? 'customer' : 'bot'}`} key={row.id}>
+                <strong>{row.senderType === 'CUSTOMER' ? 'Customer' : 'Bot'}</strong>
+                <p>{row.content}</p>
+                {row.intent ? <small>{row.intent}</small> : null}
+              </article>
+            ))
+          ) : (
+            <div className="live-chat-empty">
+              <MessageSquare size={20} aria-hidden="true" />
+              <strong>No chat yet</strong>
+              <p>Prepare the bot, then send messages like a real customer. Run full demo if you want the app to send the complete story.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="live-chat-controls">
+          <div className="live-chat-actions">
+            <button type="button" onClick={onPrepare} disabled={busy}>
+              <CheckCircle2 size={16} aria-hidden="true" /> Prepare bot
+            </button>
+            <button type="button" className="primary" onClick={onRunDemo} disabled={busy}>
+              <Send size={16} aria-hidden="true" /> Run full demo
+            </button>
+          </div>
+
+          <form className="live-chat-composer" onSubmit={submitMessage}>
+            <label>
+              Customer message
+              <textarea
+                rows="3"
+                value={state.text}
+                onChange={event => onPatch({ text: event.target.value })}
+                placeholder="Type: hello, order, A123, update, delivery delay"
+              />
+            </label>
+            <div className="button-row">
+              <button type="submit" className="primary" disabled={!canSend || !state.text.trim()}>
+                <Send size={16} aria-hidden="true" /> Send message
+              </button>
+              <button type="button" onClick={onReplayDuplicate} disabled={!idsReady.conversation || busy}>
+                <Copy size={16} aria-hidden="true" /> Replay duplicate
+              </button>
+            </div>
+          </form>
+
+          <div className="quick-message-row" aria-label="Quick customer messages">
+            {quickMessages.map(text => (
+              <button
+                type="button"
+                key={text}
+                onClick={() => (canSend ? onSendMessage(text) : onPatch({ text }))}
+                disabled={busy}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+
+          <p className="button-note">
+            {canSend
+              ? 'Each send creates one customer turn, one bot reply, then refreshes the flow log below.'
+              : 'Manual send unlocks after Prepare bot or Run full demo creates and publishes the workflow.'}
+          </p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FlowStepLog({ history, trace }) {
+  const steps = createFlowStepLog(history, trace)
+  const previewSteps = createAutoDemoScript(123456)
+
+  return (
+    <section className="friendly-section flow-step-panel" aria-label="Runtime flow step log">
+      <header>
+        <div>
+          <p className="eyebrow">Flow log</p>
+          <h4>{steps.length ? 'What ran for each chat message' : 'What will run after you send messages'}</h4>
+        </div>
+        <span>{steps.length ? `${steps.length} steps` : 'Preview'}</span>
+      </header>
+
+      {steps.length ? (
+        <ol className="flow-step-list">
+          {steps.map(step => (
+            <li key={step.id}>
+              <span className="flow-step-number">{step.stepNumber}</span>
+              <div className="flow-step-body">
+                <div className="flow-step-title">
+                  <strong>{step.customerText || step.messageId || 'Incoming message'}</strong>
+                  <code>{step.nodePath.join(' -> ')}</code>
+                </div>
+                {step.botText ? <p>{step.botText}</p> : null}
+                <div className="flow-signal-row">
+                  {step.signalChips.map(chip => <span className="intent-badge" key={chip}>{chip}</span>)}
+                </div>
+                <small>{step.requestId} / {step.messageId}</small>
+              </div>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <ol className="flow-step-list preview">
+          {previewSteps.map((step, index) => (
+            <li key={step.messageId}>
+              <span className="flow-step-number">{index + 1}</span>
+              <div className="flow-step-body">
+                <div className="flow-step-title">
+                  <strong>{step.text}</strong>
+                  <code>{step.flow}</code>
+                </div>
+                <p>{step.expect}</p>
+                <div className="flow-signal-row">
+                  <span className="intent-badge">{step.feature}</span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   )
 }
 

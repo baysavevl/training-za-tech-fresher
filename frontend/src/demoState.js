@@ -540,6 +540,74 @@ export function summarizeHistory(history = []) {
   }
 }
 
+export function createFlowStepLog(history = [], trace = []) {
+  const rowsByTraceId = normalizeHistoryItems(history).reduce((groups, row) => {
+    if (!row.traceId) {
+      return groups
+    }
+    return {
+      ...groups,
+      [row.traceId]: [...(groups[row.traceId] || []), row]
+    }
+  }, {})
+
+  return (Array.isArray(trace) ? trace : []).map((item, index) => {
+    const detail = parseRuntimeDetail(item?.detailJson)
+    const outcome = detail.outcome || {}
+    const rows = rowsByTraceId[item?.requestId] || []
+    const customer = rows.find(row => row.senderType === 'CUSTOMER')
+    const bot = rows.find(row => row.senderType === 'BOT')
+    const nodePath = Array.isArray(detail.nodePath) && detail.nodePath.length
+      ? detail.nodePath
+      : [detail.previousNodeId, detail.currentNodeId, item?.nodeId].filter(Boolean)
+    const eventType = item?.eventType || detail.eventType || 'TRACE'
+    const category = outcome.category || detail.category || ''
+    const actionName = detail.actionName || ''
+    const orderId = outcome.orderId || detail.orderId || ''
+    const status = outcome.status || detail.status || ''
+    const supportCategory = outcome.supportCategory || detail.supportCategory || ''
+
+    return {
+      id: item?.id || item?.requestId || `flow-step-${index + 1}`,
+      stepNumber: index + 1,
+      requestId: item?.requestId || '',
+      messageId: item?.messageId || '',
+      customerText: customer?.content || '',
+      botText: bot?.content || '',
+      intent: customer?.intent || '',
+      eventType,
+      previousNodeId: detail.previousNodeId || '',
+      currentNodeId: detail.currentNodeId || item?.nodeId || '',
+      nodePath: nodePath.length ? nodePath : [item?.nodeId || 'unknown'],
+      actionName,
+      category,
+      orderId,
+      status,
+      supportCategory,
+      signalChips: compactUnique([
+        customer?.intent,
+        category || eventType,
+        actionName,
+        orderId ? `order ${orderId}` : '',
+        status,
+        supportCategory
+      ])
+    }
+  })
+}
+
+function parseRuntimeDetail(detailJson) {
+  try {
+    return JSON.parse(detailJson || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function compactUnique(values) {
+  return [...new Set(values.filter(Boolean))]
+}
+
 export function updateOperationResponses(currentResponses, target, payload) {
   const next = {
     chat: currentResponses?.chat || null,
